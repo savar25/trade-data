@@ -1,9 +1,9 @@
 # BEA Trade Analysis Validation Report
 
-**Generated**: 2025-09-11 01:14:06
-**Year**: 2019
-**Country**: US
-**Trade Flows**: domestic
+**Generated**: 2025-09-15 23:00:00  
+**Year**: 2019  
+**Country**: US  
+**Trade Flows**: domestic,imports,exports  
 **Force Regeneration**: False
 
 ## Optimization Status
@@ -20,7 +20,7 @@
 - Successfully integrated US-BEA API data
 
 ### BEA API Usage Statistics
-- API calls made: 1
+- API calls made: 4
 - Cache files created: 4
 
 ## BEA Enhanced Output Files Generated
@@ -35,4 +35,3 @@
 - `bea_industry_mapping.csv` - BEA industry concordance
 - `state_industry_impacts.csv` - State economic impacts
 - `trade_price_indices.csv` - Trade price indices
-
