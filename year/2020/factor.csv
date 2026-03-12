@@ -1,0 +1,722 @@
+factor_id,unit,stressor,extension
+1,kg,As - combustion - air,air_emissions
+2,kg,B(a)P - combustion - air,air_emissions
+3,kg,B(b)F - combustion - air,air_emissions
+4,kg,B(k)F - combustion - air,air_emissions
+5,kg,CH4 - combustion - air,air_emissions
+6,kg,CO - combustion - air,air_emissions
+7,kg,CO2 - combustion - air,air_emissions
+8,kg,CO2_bio - combustion - air,air_emissions
+9,kg,Cd - combustion - air,air_emissions
+10,kg,Cr - combustion - air,air_emissions
+11,kg,Cu - combustion - air,air_emissions
+12,kg,HCB - combustion - air,air_emissions
+13,kg,Hg - combustion - air,air_emissions
+14,kg,Indeno - combustion - air,air_emissions
+15,kg,N2O - combustion - air,air_emissions
+16,kg,NH3 - combustion - air,air_emissions
+17,kg,NMVOC - combustion - air,air_emissions
+18,kg,NOx - combustion - air,air_emissions
+19,kg,Ni - combustion - air,air_emissions
+20,kg,PCB - combustion - air,air_emissions
+21,kg,PCDD/F - combustion - air,air_emissions
+22,kg,PM10 - combustion - air,air_emissions
+23,kg,PM2_5 - combustion - air,air_emissions
+24,kg,Pb - combustion - air,air_emissions
+25,kg,SO2 - combustion - air,air_emissions
+26,kg,SOx - combustion - air,air_emissions
+27,kg,Se - combustion - air,air_emissions
+28,kg,TSP - combustion - air,air_emissions
+29,kg,Zn - combustion - air,air_emissions
+30,kg,As - non combustion - Agglomeration plant - pellets - air,air_emissions
+31,kg,As - non combustion - Agglomeration plant - sinter - air,air_emissions
+32,kg,As - non combustion - Glass production - air,air_emissions
+33,kg,As - non combustion - Production of coke oven coke - air,air_emissions
+34,kg,As - non combustion - Production of gascoke - air,air_emissions
+35,kg,As - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+36,kg,As - non combustion - Steel production: electric arc furnace - air,air_emissions
+37,kg,As - non combustion - Steel production: open hearth furnace - air,air_emissions
+38,kg,B(a)P - non combustion - Primary aluminium production - air,air_emissions
+39,kg,B(a)P - non combustion - Production of coke oven coke - air,air_emissions
+40,kg,B(a)P - non combustion - Production of gascoke - air,air_emissions
+41,kg,B(b)F - non combustion - Primary aluminium production - air,air_emissions
+42,kg,B(b)F - non combustion - Production of coke oven coke - air,air_emissions
+43,kg,B(b)F - non combustion - Production of gascoke - air,air_emissions
+44,kg,B(k)F - non combustion - Primary aluminium production - air,air_emissions
+45,kg,B(k)F - non combustion - Production of coke oven coke - air,air_emissions
+46,kg,B(k)F - non combustion - Production of gascoke - air,air_emissions
+47,kg,CH4 - non combustion - Extraction/production of (natural) gas - air,air_emissions
+48,kg,CH4 - non combustion - Extraction/production of crude oil - air,air_emissions
+49,kg,CH4 - non combustion - Mining of antracite - air,air_emissions
+50,kg,CH4 - non combustion - Mining of bituminous coal - air,air_emissions
+51,kg,CH4 - non combustion - Mining of coking coal - air,air_emissions
+52,kg,CH4 - non combustion - Mining of lignite (brown coal) - air,air_emissions
+53,kg,CH4 - non combustion - Mining of sub-bituminous coal - air,air_emissions
+54,kg,CH4 - non combustion - Oil refinery - air,air_emissions
+55,kg,CO - non combustion - Agglomeration plant - sinter - air,air_emissions
+56,kg,CO - non combustion - Bricks production - air,air_emissions
+57,kg,CO - non combustion - Carbon black production - air,air_emissions
+58,kg,CO - non combustion - Cement production - air,air_emissions
+59,kg,"CO - non combustion - Chemical wood pulp, dissolving grades - air",air_emissions
+60,kg,"CO - non combustion - Chemical wood pulp, soda and sulphate, other than dissolving grades - air",air_emissions
+61,kg,"CO - non combustion - Chemical wood pulp, sulphite, other than dissolving grades - air",air_emissions
+62,kg,CO - non combustion - Glass production - air,air_emissions
+63,kg,CO - non combustion - Lime production - air,air_emissions
+64,kg,CO - non combustion - Oil refinery - air,air_emissions
+65,kg,"CO - non combustion - Pig iron production, blast furnace - air",air_emissions
+66,kg,CO - non combustion - Primary aluminium production - air,air_emissions
+67,kg,CO - non combustion - Production of coke oven coke - air,air_emissions
+68,kg,CO - non combustion - Production of gascoke - air,air_emissions
+69,kg,"CO - non combustion - Semi-chemical wood pulp, pulp of fibers other than wood - air",air_emissions
+70,kg,CO - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+71,kg,CO - non combustion - Steel production: electric arc furnace - air,air_emissions
+72,kg,CO2 - non combustion - Cement production - air,air_emissions
+73,kg,CO2 - non combustion - Lime production - air,air_emissions
+74,kg,Cd - non combustion - Agglomeration plant - pellets - air,air_emissions
+75,kg,Cd - non combustion - Agglomeration plant - sinter - air,air_emissions
+76,kg,Cd - non combustion - Glass production - air,air_emissions
+77,kg,"Cd - non combustion - Nickel, unwrought - air",air_emissions
+78,kg,Cd - non combustion - Production of coke oven coke - air,air_emissions
+79,kg,Cd - non combustion - Production of gascoke - air,air_emissions
+80,kg,"Cd - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+81,kg,"Cd - non combustion - Refined lead, unwrought - air",air_emissions
+82,kg,Cd - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+83,kg,Cd - non combustion - Steel production: electric arc furnace - air,air_emissions
+84,kg,Cd - non combustion - Steel production: open hearth furnace - air,air_emissions
+85,kg,Cd - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+86,kg,"Cd - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+87,kg,Cr - non combustion - Agglomeration plant - pellets - air,air_emissions
+88,kg,Cr - non combustion - Agglomeration plant - sinter - air,air_emissions
+89,kg,Cr - non combustion - Glass production - air,air_emissions
+90,kg,"Cr - non combustion - Pig iron production, blast furnace - air",air_emissions
+91,kg,Cr - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+92,kg,Cr - non combustion - Steel production: electric arc furnace - air,air_emissions
+93,kg,Cr - non combustion - Steel production: open hearth furnace - air,air_emissions
+94,kg,Cu - non combustion - Agglomeration plant - pellets - air,air_emissions
+95,kg,Cu - non combustion - Agglomeration plant - sinter - air,air_emissions
+96,kg,Cu - non combustion - Glass production - air,air_emissions
+97,kg,"Cu - non combustion - Pig iron production, blast furnace - air",air_emissions
+98,kg,Cu - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+99,kg,Cu - non combustion - Steel production: electric arc furnace - air,air_emissions
+100,kg,Cu - non combustion - Steel production: open hearth furnace - air,air_emissions
+101,kg,HCB - non combustion - Agglomeration plant - pellets - air,air_emissions
+102,kg,HCB - non combustion - Agglomeration plant - sinter - air,air_emissions
+103,kg,Hg - non combustion - Agglomeration plant - pellets - air,air_emissions
+104,kg,Hg - non combustion - Agglomeration plant - sinter - air,air_emissions
+105,kg,Hg - non combustion - Glass production - air,air_emissions
+106,kg,"Hg - non combustion - Nickel, unwrought - air",air_emissions
+107,kg,"Hg - non combustion - Pig iron production, blast furnace - air",air_emissions
+108,kg,Hg - non combustion - Production of coke oven coke - air,air_emissions
+109,kg,Hg - non combustion - Production of gascoke - air,air_emissions
+110,kg,"Hg - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+111,kg,"Hg - non combustion - Refined lead, unwrought - air",air_emissions
+112,kg,HCB - non combustion - Secondary aluminium production - air,air_emissions
+113,kg,Hg - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+114,kg,Hg - non combustion - Steel production: electric arc furnace - air,air_emissions
+115,kg,Hg - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+116,kg,"Hg - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+117,kg,Indeno - non combustion - Primary aluminium production - air,air_emissions
+118,kg,Indeno - non combustion - Production of coke oven coke - air,air_emissions
+119,kg,Indeno - non combustion - Production of gascoke - air,air_emissions
+120,kg,NH3 - non combustion - N- fertilizer production - air,air_emissions
+121,kg,NMVOC - non combustion - Beef and veal - air,air_emissions
+122,kg,NMVOC - non combustion - Coil coating (coating of aluminum and steel) - air,air_emissions
+123,kg,NMVOC - non combustion - Decorative paint applicatoin - air,air_emissions
+124,kg,NMVOC - non combustion - Degreasing - air,air_emissions
+125,kg,NMVOC - non combustion - Diesel distribution - transport and depots (used in mobile sources) - air,air_emissions
+126,kg,NMVOC - non combustion - Diesel distribution - transport and depots (used in stationary sources) - air,air_emissions
+127,kg,NMVOC - non combustion - Dry cleaning - air,air_emissions
+128,kg,"NMVOC - non combustion - Extraction, proc. and distribution of gaseous fuels - air",air_emissions
+129,kg,"NMVOC - non combustion - Extraction, proc. and distribution of liquid fuels - air",air_emissions
+130,kg,NMVOC - non combustion - Extraction/production of (natural) gas - air,air_emissions
+131,kg,NMVOC - non combustion - Extraction/production of crude oil - air,air_emissions
+132,kg,"NMVOC - non combustion - Fat, edible and non-edible oil extraction - air",air_emissions
+133,kg,"NMVOC - non combustion - Fish, dried, salted or in brine; smoked fish; edible fish meal - air",air_emissions
+134,kg,"NMVOC - non combustion - Fish, fish fillets, other fish meat and fish livers and roes, frozen - air",air_emissions
+135,kg,"NMVOC - non combustion - Fish, otherwise prepared or preserved; caviar - air",air_emissions
+136,kg,NMVOC - non combustion - Flexography and rotogravure in packaging - air,air_emissions
+137,kg,NMVOC - non combustion - Gasoline distribution - service stations - air,air_emissions
+138,kg,NMVOC - non combustion - Gasoline distribution - transport and depots (used in mobile sources) - air,air_emissions
+139,kg,NMVOC - non combustion - Gasoline distribution - transport and depots (used in stationary sources) - air,air_emissions
+140,kg,NMVOC - non combustion - Industrial application of adhesives (use of high performance solvent based adhesives) - air,air_emissions
+141,kg,NMVOC - non combustion - Industrial application of adhesives (use of traditional solvent based adhesives) - air,air_emissions
+142,kg,"NMVOC - non combustion - Industrial paint application, general industry (continuous processes) - air",air_emissions
+143,kg,"NMVOC - non combustion - Industrial paint application, general industry (plastic parts) - air",air_emissions
+144,kg,"NMVOC - non combustion - Industrial paint application, general industry - air",air_emissions
+145,kg,"NMVOC - non combustion - Inorganic chemical industry, fertilizers and other - air",air_emissions
+146,kg,NMVOC - non combustion - Leather coating - air,air_emissions
+147,kg,NMVOC - non combustion - Manufacture of automobiles - air,air_emissions
+148,kg,NMVOC - non combustion - Mutton and lamb - air,air_emissions
+149,kg,NMVOC - non combustion - Oil refinery - air,air_emissions
+150,kg,NMVOC - non combustion - Organic chemical industry - downstream units - air,air_emissions
+151,kg,"NMVOC - non combustion - Organic chemical industry, storage - air",air_emissions
+152,kg,NMVOC - non combustion - Other industrial use of solvents - air,air_emissions
+153,kg,NMVOC - non combustion - Pharmaceutical industry - air,air_emissions
+154,kg,NMVOC - non combustion - Polystyrene processing - air,air_emissions
+155,kg,NMVOC - non combustion - Polyvinylchloride produceduction by suspension process - air,air_emissions
+156,kg,NMVOC - non combustion - Pork - air,air_emissions
+157,kg,"NMVOC - non combustion - Poultry, dressed - air",air_emissions
+158,kg,"NMVOC - non combustion - Printing, offset - air",air_emissions
+159,kg,NMVOC - non combustion - Products incorporating solvents - air,air_emissions
+160,kg,NMVOC - non combustion - Raw sugar - air,air_emissions
+161,kg,NMVOC - non combustion - Rotogravure in publication - air,air_emissions
+162,kg,NMVOC - non combustion - Screen printing - air,air_emissions
+163,kg,NMVOC - non combustion - Steam cracking (ethylene and propylene production) - air,air_emissions
+164,kg,NMVOC - non combustion - Synthetic rubber - air,air_emissions
+165,kg,NMVOC - non combustion - Tyre production - air,air_emissions
+166,kg,NMVOC - non combustion - Vehicle refinishing - air,air_emissions
+167,kg,NMVOC - non combustion - Wire coating - air,air_emissions
+168,kg,NOx - non combustion - Agglomeration plant - pellets - air,air_emissions
+169,kg,NOx - non combustion - Agglomeration plant - sinter - air,air_emissions
+170,kg,NOx - non combustion - Bricks production - air,air_emissions
+171,kg,NOx - non combustion - Cement production - air,air_emissions
+172,kg,"NOx - non combustion - Chemical wood pulp, dissolving grades - air",air_emissions
+173,kg,"NOx - non combustion - Chemical wood pulp, soda and sulphate, other than dissolving grades - air",air_emissions
+174,kg,"NOx - non combustion - Chemical wood pulp, sulphite, other than dissolving grades - air",air_emissions
+175,kg,NOx - non combustion - Glass production - air,air_emissions
+176,kg,NOx - non combustion - Lime production - air,air_emissions
+177,kg,"NOx - non combustion - Nickel, unwrought - air",air_emissions
+178,kg,NOx - non combustion - Oil refinery - air,air_emissions
+179,kg,"NOx - non combustion - Pig iron production, blast furnace - air",air_emissions
+180,kg,NOx - non combustion - Production of coke oven coke - air,air_emissions
+181,kg,NOx - non combustion - Production of gascoke - air,air_emissions
+182,kg,"NOx - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+183,kg,"NOx - non combustion - Refined lead, unwrought - air",air_emissions
+184,kg,"NOx - non combustion - Semi-chemical wood pulp, pulp of fibers other than wood - air",air_emissions
+185,kg,NOx - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+186,kg,NOx - non combustion - Steel production: electric arc furnace - air,air_emissions
+187,kg,NOx - non combustion - Sulphuric acid production - air,air_emissions
+188,kg,NOx - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+189,kg,"NOx - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+190,kg,Ni - non combustion - Agglomeration plant - pellets - air,air_emissions
+191,kg,Ni - non combustion - Agglomeration plant - sinter - air,air_emissions
+192,kg,Ni - non combustion - Glass production - air,air_emissions
+193,kg,Ni - non combustion - Production of coke oven coke - air,air_emissions
+194,kg,Ni - non combustion - Production of gascoke - air,air_emissions
+195,kg,Ni - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+196,kg,Ni - non combustion - Steel production: electric arc furnace - air,air_emissions
+197,kg,Ni - non combustion - Steel production: open hearth furnace - air,air_emissions
+198,kg,PAH - non combustion - Agglomeration plant - pellets - air,air_emissions
+199,kg,PAH - non combustion - Agglomeration plant - sinter - air,air_emissions
+200,kg,"PAH - non combustion - Pig iron production, blast furnace - air",air_emissions
+201,kg,PAH - non combustion - Production of coke oven coke - air,air_emissions
+202,kg,PAH - non combustion - Production of gascoke - air,air_emissions
+203,kg,PAH - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+204,kg,PAH - non combustion - Steel production: electric arc furnace - air,air_emissions
+205,kg,PCB - non combustion - Agglomeration plant - pellets - air,air_emissions
+206,kg,PCB - non combustion - Agglomeration plant - sinter - air,air_emissions
+207,kg,"PCB - non combustion - Pig iron production, blast furnace - air",air_emissions
+208,kg,PCB - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+209,kg,PCB - non combustion - Steel production: electric arc furnace - air,air_emissions
+210,kg,PCDD/F - non combustion - Agglomeration plant - pellets - air,air_emissions
+211,kg,PCDD/F - non combustion - Agglomeration plant - sinter - air,air_emissions
+212,kg,"PCDD/F - non combustion - Pig iron production, blast furnace - air",air_emissions
+213,kg,PCDD/F - non combustion - Secondary aluminium production - air,air_emissions
+214,kg,PCDD/F - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+215,kg,PCDD/F - non combustion - Steel production: electric arc furnace - air,air_emissions
+216,kg,PM10 - non combustion - Agglomeration plant - pellets - air,air_emissions
+217,kg,PM10 - non combustion - Agglomeration plant - sinter - air,air_emissions
+218,kg,PM10 - non combustion - Aluminium ores and concentrates (Bauxite) - air,air_emissions
+219,kg,PM10 - non combustion - Bricks production - air,air_emissions
+220,kg,PM10 - non combustion - Briquettes production - air,air_emissions
+221,kg,PM10 - non combustion - Carbon black production - air,air_emissions
+222,kg,PM10 - non combustion - Cast iron production (grey iron foundries) - air,air_emissions
+223,kg,PM10 - non combustion - Cement production - air,air_emissions
+224,kg,"PM10 - non combustion - Chemical wood pulp, dissolving grades - air",air_emissions
+225,kg,"PM10 - non combustion - Chemical wood pulp, soda and sulphate, other than dissolving grades - air",air_emissions
+226,kg,"PM10 - non combustion - Chemical wood pulp, sulphite, other than dissolving grades - air",air_emissions
+227,kg,PM10 - non combustion - Chromium ores and concentrates - air,air_emissions
+228,kg,PM10 - non combustion - Copper ores and concentrates - air,air_emissions
+229,kg,PM10 - non combustion - Fertilizer production (N-fertilizer) - air,air_emissions
+230,kg,PM10 - non combustion - Glass production - air,air_emissions
+231,kg,PM10 - non combustion - Gold ores and concentrates - air,air_emissions
+232,kg,PM10 - non combustion - Iron ores and concentrates - air,air_emissions
+233,kg,PM10 - non combustion - Lead ores and concentrates - air,air_emissions
+234,kg,PM10 - non combustion - Lime production - air,air_emissions
+235,kg,PM10 - non combustion - Mining of antracite - air,air_emissions
+236,kg,PM10 - non combustion - Mining of bituminous coal - air,air_emissions
+237,kg,PM10 - non combustion - Mining of coking coal - air,air_emissions
+238,kg,PM10 - non combustion - Mining of lignite (brown coal) - air,air_emissions
+239,kg,PM10 - non combustion - Mining of sub-bituminous coal - air,air_emissions
+240,kg,PM10 - non combustion - Molybdenum ores and concentrates - air,air_emissions
+241,kg,PM10 - non combustion - N- fertilizer production - air,air_emissions
+242,kg,PM10 - non combustion - Nickel ores and concentrates - air,air_emissions
+243,kg,"PM10 - non combustion - Nickel, unwrought - air",air_emissions
+244,kg,PM10 - non combustion - Oil refinery - air,air_emissions
+245,kg,"PM10 - non combustion - Pig iron production, blast furnace - air",air_emissions
+246,kg,PM10 - non combustion - Platinum ores and concentrates - air,air_emissions
+247,kg,PM10 - non combustion - Primary aluminium production - air,air_emissions
+248,kg,PM10 - non combustion - Production of coke oven coke - air,air_emissions
+249,kg,PM10 - non combustion - Production of gascoke - air,air_emissions
+250,kg,"PM10 - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+251,kg,"PM10 - non combustion - Refined lead, unwrought - air",air_emissions
+252,kg,PM10 - non combustion - Secondary aluminium production - air,air_emissions
+253,kg,"PM10 - non combustion - Semi-chemical wood pulp, pulp of fibers other than wood - air",air_emissions
+254,kg,PM10 - non combustion - Silver ores and concentrates - air,air_emissions
+255,kg,PM10 - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+256,kg,PM10 - non combustion - Steel production: electric arc furnace - air,air_emissions
+257,kg,PM10 - non combustion - Steel production: open hearth furnace - air,air_emissions
+258,kg,PM10 - non combustion - Tin ores and concentrates - air,air_emissions
+259,kg,PM10 - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+260,kg,PM10 - non combustion - Zinc ores and concentrates - air,air_emissions
+261,kg,"PM10 - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+262,kg,PM2.5 - non combustion - Agglomeration plant - pellets - air,air_emissions
+263,kg,PM2.5 - non combustion - Agglomeration plant - sinter - air,air_emissions
+264,kg,PM2.5 - non combustion - Aluminium ores and concentrates (Bauxite) - air,air_emissions
+265,kg,PM2.5 - non combustion - Bricks production - air,air_emissions
+266,kg,PM2.5 - non combustion - Briquettes production - air,air_emissions
+267,kg,PM2.5 - non combustion - Carbon black production - air,air_emissions
+268,kg,PM2.5 - non combustion - Cast iron production (grey iron foundries) - air,air_emissions
+269,kg,PM2.5 - non combustion - Cement production - air,air_emissions
+270,kg,"PM2.5 - non combustion - Chemical wood pulp, dissolving grades - air",air_emissions
+271,kg,"PM2.5 - non combustion - Chemical wood pulp, soda and sulphate, other than dissolving grades - air",air_emissions
+272,kg,"PM2.5 - non combustion - Chemical wood pulp, sulphite, other than dissolving grades - air",air_emissions
+273,kg,PM2.5 - non combustion - Chromium ores and concentrates - air,air_emissions
+274,kg,PM2.5 - non combustion - Copper ores and concentrates - air,air_emissions
+275,kg,PM2.5 - non combustion - Fertilizer production (N-fertilizer) - air,air_emissions
+276,kg,PM2.5 - non combustion - Glass production - air,air_emissions
+277,kg,PM2.5 - non combustion - Gold ores and concentrates - air,air_emissions
+278,kg,PM2.5 - non combustion - Iron ores and concentrates - air,air_emissions
+279,kg,PM2.5 - non combustion - Lead ores and concentrates - air,air_emissions
+280,kg,PM2.5 - non combustion - Lime production - air,air_emissions
+281,kg,PM2.5 - non combustion - Mining of antracite - air,air_emissions
+282,kg,PM2.5 - non combustion - Mining of bituminous coal - air,air_emissions
+283,kg,PM2.5 - non combustion - Mining of coking coal - air,air_emissions
+284,kg,PM2.5 - non combustion - Mining of lignite (brown coal) - air,air_emissions
+285,kg,PM2.5 - non combustion - Mining of sub-bituminous coal - air,air_emissions
+286,kg,PM2.5 - non combustion - Molybdenum ores and concentrates - air,air_emissions
+287,kg,PM2.5 - non combustion - N- fertilizer production - air,air_emissions
+288,kg,PM2.5 - non combustion - Nickel ores and concentrates - air,air_emissions
+289,kg,"PM2.5 - non combustion - Nickel, unwrought - air",air_emissions
+290,kg,PM2.5 - non combustion - Oil refinery - air,air_emissions
+291,kg,"PM2.5 - non combustion - Pig iron production, blast furnace - air",air_emissions
+292,kg,PM2.5 - non combustion - Platinum ores and concentrates - air,air_emissions
+293,kg,PM2.5 - non combustion - Primary aluminium production - air,air_emissions
+294,kg,PM2.5 - non combustion - Production of coke oven coke - air,air_emissions
+295,kg,PM2.5 - non combustion - Production of gascoke - air,air_emissions
+296,kg,"PM2.5 - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+297,kg,"PM2.5 - non combustion - Refined lead, unwrought - air",air_emissions
+298,kg,PM2.5 - non combustion - Secondary aluminium production - air,air_emissions
+299,kg,"PM2.5 - non combustion - Semi-chemical wood pulp, pulp of fibers other than wood - air",air_emissions
+300,kg,PM2.5 - non combustion - Silver ores and concentrates - air,air_emissions
+301,kg,PM2.5 - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+302,kg,PM2.5 - non combustion - Steel production: electric arc furnace - air,air_emissions
+303,kg,PM2.5 - non combustion - Steel production: open hearth furnace - air,air_emissions
+304,kg,PM2.5 - non combustion - Tin ores and concentrates - air,air_emissions
+305,kg,PM2.5 - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+306,kg,PM2.5 - non combustion - Zinc ores and concentrates - air,air_emissions
+307,kg,"PM2.5 - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+308,kg,Pb - non combustion - Agglomeration plant - pellets - air,air_emissions
+309,kg,Pb - non combustion - Agglomeration plant - sinter - air,air_emissions
+310,kg,Pb - non combustion - Glass production - air,air_emissions
+311,kg,"Pb - non combustion - Nickel, unwrought - air",air_emissions
+312,kg,"Pb - non combustion - Pig iron production, blast furnace - air",air_emissions
+313,kg,Pb - non combustion - Production of coke oven coke - air,air_emissions
+314,kg,Pb - non combustion - Production of gascoke - air,air_emissions
+315,kg,"Pb - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+316,kg,"Pb - non combustion - Refined lead, unwrought - air",air_emissions
+317,kg,Pb - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+318,kg,Pb - non combustion - Steel production: electric arc furnace - air,air_emissions
+319,kg,Pb - non combustion - Steel production: open hearth furnace - air,air_emissions
+320,kg,Pb - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+321,kg,"Pb - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+322,kg,SOx - non combustion - Agglomeration plant - sinter - air,air_emissions
+323,kg,SOx - non combustion - Bricks production - air,air_emissions
+324,kg,SOx - non combustion - Cement production - air,air_emissions
+325,kg,"SOx - non combustion - Chemical wood pulp, dissolving grades - air",air_emissions
+326,kg,"SOx - non combustion - Chemical wood pulp, soda and sulphate, other than dissolving grades - air",air_emissions
+327,kg,"SOx - non combustion - Chemical wood pulp, sulphite, other than dissolving grades - air",air_emissions
+328,kg,SOx - non combustion - Glass production - air,air_emissions
+329,kg,SOx - non combustion - Lime production - air,air_emissions
+330,kg,"SOx - non combustion - Nickel, unwrought - air",air_emissions
+331,kg,SOx - non combustion - Oil refinery - air,air_emissions
+332,kg,"SOx - non combustion - Pig iron production, blast furnace - air",air_emissions
+333,kg,SOx - non combustion - Production of coke oven coke - air,air_emissions
+334,kg,SOx - non combustion - Production of gascoke - air,air_emissions
+335,kg,"SOx - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+336,kg,"SOx - non combustion - Refined lead, unwrought - air",air_emissions
+337,kg,"SOx - non combustion - Semi-chemical wood pulp, pulp of fibers other than wood - air",air_emissions
+338,kg,SOx - non combustion - Sulphuric acid production - air,air_emissions
+339,kg,SOx - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+340,kg,"SOx - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+341,kg,Se - non combustion - Agglomeration plant - pellets - air,air_emissions
+342,kg,Se - non combustion - Agglomeration plant - sinter - air,air_emissions
+343,kg,Se - non combustion - Glass production - air,air_emissions
+344,kg,Se - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+345,kg,TSP - non combustion - Agglomeration plant - pellets - air,air_emissions
+346,kg,TSP - non combustion - Agglomeration plant - sinter - air,air_emissions
+347,kg,TSP - non combustion - Aluminium ores and concentrates (Bauxite) - air,air_emissions
+348,kg,TSP - non combustion - Bricks production - air,air_emissions
+349,kg,TSP - non combustion - Briquettes production - air,air_emissions
+350,kg,TSP - non combustion - Carbon black production - air,air_emissions
+351,kg,TSP - non combustion - Cast iron production (grey iron foundries) - air,air_emissions
+352,kg,TSP - non combustion - Cement production - air,air_emissions
+353,kg,"TSP - non combustion - Chemical wood pulp, dissolving grades - air",air_emissions
+354,kg,"TSP - non combustion - Chemical wood pulp, soda and sulphate, other than dissolving grades - air",air_emissions
+355,kg,"TSP - non combustion - Chemical wood pulp, sulphite, other than dissolving grades - air",air_emissions
+356,kg,TSP - non combustion - Chromium ores and concentrates - air,air_emissions
+357,kg,TSP - non combustion - Copper ores and concentrates - air,air_emissions
+358,kg,TSP - non combustion - Fertilizer production (N-fertilizer) - air,air_emissions
+359,kg,TSP - non combustion - Glass production - air,air_emissions
+360,kg,TSP - non combustion - Gold ores and concentrates - air,air_emissions
+361,kg,TSP - non combustion - Iron ores and concentrates - air,air_emissions
+362,kg,TSP - non combustion - Lead ores and concentrates - air,air_emissions
+363,kg,TSP - non combustion - Lime production - air,air_emissions
+364,kg,TSP - non combustion - Mining of antracite - air,air_emissions
+365,kg,TSP - non combustion - Mining of bituminous coal - air,air_emissions
+366,kg,TSP - non combustion - Mining of coking coal - air,air_emissions
+367,kg,TSP - non combustion - Mining of lignite (brown coal) - air,air_emissions
+368,kg,TSP - non combustion - Mining of sub-bituminous coal - air,air_emissions
+369,kg,TSP - non combustion - Molybdenum ores and concentrates - air,air_emissions
+370,kg,TSP - non combustion - N- fertilizer production - air,air_emissions
+371,kg,TSP - non combustion - Nickel ores and concentrates - air,air_emissions
+372,kg,"TSP - non combustion - Nickel, unwrought - air",air_emissions
+373,kg,TSP - non combustion - Oil refinery - air,air_emissions
+374,kg,"TSP - non combustion - Pig iron production, blast furnace - air",air_emissions
+375,kg,TSP - non combustion - Platinum ores and concentrates - air,air_emissions
+376,kg,TSP - non combustion - Primary aluminium production - air,air_emissions
+377,kg,TSP - non combustion - Production of coke oven coke - air,air_emissions
+378,kg,TSP - non combustion - Production of gascoke - air,air_emissions
+379,kg,"TSP - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+380,kg,"TSP - non combustion - Refined lead, unwrought - air",air_emissions
+381,kg,TSP - non combustion - Secondary aluminium production - air,air_emissions
+382,kg,"TSP - non combustion - Semi-chemical wood pulp, pulp of fibers other than wood - air",air_emissions
+383,kg,TSP - non combustion - Silver ores and concentrates - air,air_emissions
+384,kg,TSP - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+385,kg,TSP - non combustion - Steel production: electric arc furnace - air,air_emissions
+386,kg,TSP - non combustion - Steel production: open hearth furnace - air,air_emissions
+387,kg,TSP - non combustion - Tin ores and concentrates - air,air_emissions
+388,kg,TSP - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+389,kg,TSP - non combustion - Zinc ores and concentrates - air,air_emissions
+390,kg,"TSP - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+391,kg,Zn - non combustion - Agglomeration plant - pellets - air,air_emissions
+392,kg,Zn - non combustion - Agglomeration plant - sinter - air,air_emissions
+393,kg,Zn - non combustion - Glass production - air,air_emissions
+394,kg,"Zn - non combustion - Nickel, unwrought - air",air_emissions
+395,kg,"Zn - non combustion - Pig iron production, blast furnace - air",air_emissions
+396,kg,"Zn - non combustion - Refined copper; unwrought, not alloyed - air",air_emissions
+397,kg,"Zn - non combustion - Refined lead, unwrought - air",air_emissions
+398,kg,Zn - non combustion - Steel production: basic oxygen furnace - air,air_emissions
+399,kg,Zn - non combustion - Steel production: electric arc furnace - air,air_emissions
+400,kg,Zn - non combustion - Steel production: open hearth furnace - air,air_emissions
+401,kg,Zn - non combustion - Unrefined copper; copper anodes for electrolytic refining - air,air_emissions
+402,kg,"Zn - non combustion - Zinc, unwrought, not alloyed - air",air_emissions
+403,kg,SF6 - air,air_emissions
+404,kg CO2-eq,HFC - air,air_emissions
+405,kg CO2-eq,PFC - air,air_emissions
+406,kg,CH4 - agriculture - air,air_emissions
+407,kg,CO2 - agriculture - peat decay - air,air_emissions
+408,kg,N2O - agriculture - air,air_emissions
+409,kg,NH3 - agriculture - air,air_emissions
+410,kg,NOX - agriculture - air,air_emissions
+411,kg,CH4 - waste - air,air_emissions
+412,kg,CO - waste - air,air_emissions
+413,kg,CO2 - waste - biogenic - air,air_emissions
+414,kg,CO2 - waste - fossil - air,air_emissions
+415,kg,NH3 - waste - air,air_emissions
+416,kg,NOX - waste - air,air_emissions
+417,kg,PM2.5 - waste - air,air_emissions
+418,kg,SOx - waste - air,air_emissions
+419,1000 p,Employment people: Low-skilled male,employment
+420,1000 p,Employment people: Low-skilled female,employment
+421,1000 p,Employment people: Medium-skilled male,employment
+422,1000 p,Employment people: Medium-skilled female,employment
+423,1000 p,Employment people: High-skilled male,employment
+424,1000 p,Employment people: High-skilled female,employment
+425,M.hr,Employment hours: Low-skilled male,employment
+426,M.hr,Employment hours: Low-skilled female,employment
+427,M.hr,Employment hours: Medium-skilled male,employment
+428,M.hr,Employment hours: Medium-skilled female,employment
+429,M.hr,Employment hours: High-skilled male,employment
+430,M.hr,Employment hours: High-skilled female,employment
+431,TJ,Energy use - Emission relevant,energy
+432,TJ,Energy use - Final,energy
+433,TJ,Energy use - Gross,energy
+434,TJ,Energy use - Net,energy
+435,km2,Artificial Surfaces,land
+436,km2,Cropland - cropped area - Cereal grains nec,land
+437,km2,Cropland - cropped area - Crops nec,land
+438,km2,Cropland - cropped area - Oil seeds,land
+439,km2,Cropland - cropped area - Paddy rice,land
+440,km2,Cropland - cropped area - Plant-based fibers,land
+441,km2,"Cropland - cropped area - Sugar cane, sugar beet",land
+442,km2,"Cropland - cropped area - Vegetables, fruit, nuts",land
+443,km2,Cropland - cropped area - Wheat,land
+444,km2,Cropland - fallowed area - Cereal grains nec,land
+445,km2,Cropland - fallowed area - Crops nec,land
+446,km2,Cropland - fallowed area - Oil seeds,land
+447,km2,Cropland - fallowed area - Paddy rice,land
+448,km2,Cropland - fallowed area - Plant-based fibers,land
+449,km2,"Cropland - fallowed area - Sugar cane, sugar beet",land
+450,km2,"Cropland - fallowed area - Vegetables, fruit, nuts",land
+451,km2,Cropland - fallowed area - Wheat,land
+452,km2,Cropland - fallowed area-Cattle,land
+453,km2,Cropland - fallowed area-Meat animals nec,land
+454,km2,Cropland - fallowed area-Pigs,land
+455,km2,Cropland - fallowed area-Poultry,land
+456,km2,Cropland - fallowed area-Raw milk,land
+457,km2,Forest,land
+458,km2,Perm. meadows & pastures - Cultivated - Grazing-Cattle,land
+459,km2,Perm. meadows & pastures - Cultivated - Grazing-Meat animals nec,land
+460,km2,Perm. meadows & pastures - Cultivated - Grazing-Raw milk,land
+461,km2,Perm. meadows & pastures - Nat. growing - Grazing-Cattle,land
+462,km2,Perm. meadows & pastures - Nat. growing - Grazing-Meat animals nec,land
+463,km2,Perm. meadows & pastures - Nat. growing - Grazing-Raw milk,land
+464,km2,Permanent pastures - Grazing-Cattle,land
+465,km2,Permanent pastures - Grazing-Meat animals nec,land
+466,km2,Permanent pastures - Grazing-Raw milk,land
+467,kt,Domestic Extraction Used - Primary Crops - Rice,material
+468,kt,Domestic Extraction Used - Primary Crops - Wheat,material
+469,kt,Domestic Extraction Used - Primary Crops - Cereals n.e.c.,material
+470,kt,Domestic Extraction Used - Primary Crops - Roots and tubers,material
+471,kt,Domestic Extraction Used - Primary Crops - Pulses,material
+472,kt,Domestic Extraction Used - Primary Crops - Nuts,material
+473,kt,Domestic Extraction Used - Primary Crops - Vegetables,material
+474,kt,Domestic Extraction Used - Primary Crops - Fruits,material
+475,kt,Domestic Extraction Used - Primary Crops - Oil bearing crops,material
+476,kt,Domestic Extraction Used - Primary Crops - Sugar crops,material
+477,kt,Domestic Extraction Used - Primary Crops - Fibres,material
+478,kt,Domestic Extraction Used - Primary Crops - Spice - beverage - pharmaceutical crops,material
+479,kt,Domestic Extraction Used - Primary Crops - Tobacco,material
+480,kt,Domestic Extraction Used - Crop residues - Straw,material
+481,kt,Domestic Extraction Used - Crop residues - Other crop residues (sugar and fodder beet leaves etc),material
+482,kt,Domestic Extraction Used - Grazed biomass,material
+483,kt,Domestic Extraction Used - Forestry - Other crops n.e.c,material
+484,kt,Domestic Extraction Used - Forestry - Timber (Industrial roundwood),material
+485,kt,Domestic Extraction Used - Forestry - Wood fuel and other extraction,material
+486,kt,Domestic Extraction Used - Fishery - Wild fish catch,material
+487,kt,Domestic Extraction Used - Fishery - All other aquatic animals,material
+488,kt,Domestic Extraction Used - Fishery - Aquatic plants,material
+489,kt,Domestic Extraction Used - Fossil Fuels - Anthracite,material
+490,kt,Domestic Extraction Used - Fossil Fuels - Coking Coal,material
+491,kt,Domestic Extraction Used - Fossil Fuels - Other Bituminous Coal,material
+492,kt,Domestic Extraction Used - Fossil Fuels - Other Sub-Bituminous Coal,material
+493,kt,Domestic Extraction Used - Fossil Fuels - Lignite (brown coal),material
+494,kt,Domestic Extraction Used - Fossil Fuels - Peat,material
+495,kt,Domestic Extraction Used - Fossil Fuels - Crude oil,material
+496,kt,Domestic Extraction Used - Fossil Fuels - Oil shale and tar sands,material
+497,kt,Domestic Extraction Used - Fossil Fuels - Natural gas,material
+498,kt,Domestic Extraction Used - Fossil Fuels - Natural gas liquids,material
+499,kt,Domestic Extraction Used - Metal Ores - Uranium ores,material
+500,kt,Domestic Extraction Used - Metal Ores - Iron ores,material
+501,kt,Domestic Extraction Used - Metal Ores - Copper ores,material
+502,kt,Domestic Extraction Used - Metal Ores - Nickel ores,material
+503,kt,Domestic Extraction Used - Metal Ores - Bauxite and other aluminium ores - gross ore,material
+504,kt,Domestic Extraction Used - Metal Ores - Silver ores,material
+505,kt,Domestic Extraction Used - Metal Ores - Gold ores,material
+506,kt,Domestic Extraction Used - Metal Ores - Platinum group metal ores,material
+507,kt,Domestic Extraction Used - Metal Ores - Lead ores,material
+508,kt,Domestic Extraction Used - Metal Ores - Tin ores,material
+509,kt,Domestic Extraction Used - Metal Ores - Zinc ores,material
+510,kt,Domestic Extraction Used - Metal Ores - Chromium ores,material
+511,kt,Domestic Extraction Used - Metal Ores - Manganese ores,material
+512,kt,Domestic Extraction Used - Metal Ores - Other metal ores,material
+513,kt,Domestic Extraction Used - Metal Ores - Titanium ores,material
+514,kt,Domestic Extraction Used - Non-Metallic Minerals - Ornamental or building stone,material
+515,kt,Domestic Extraction Used - Non-Metallic Minerals - Chalk,material
+516,kt,Domestic Extraction Used - Non-Metallic Minerals - Dolomite,material
+517,kt,Domestic Extraction Used - Non-Metallic Minerals - Limestone,material
+518,kt,Domestic Extraction Used - Non-Metallic Minerals - Gypsum,material
+519,kt,Domestic Extraction Used - Non-Metallic Minerals - Structural clays,material
+520,kt,Domestic Extraction Used - Non-Metallic Minerals - Specialty clays,material
+521,kt,Domestic Extraction Used - Non-Metallic Minerals - Industrial sand and gravel,material
+522,kt,Domestic Extraction Used - Non-Metallic Minerals - Sand gravel and crushed rock for construction,material
+523,kt,Domestic Extraction Used - Non-Metallic Minerals - Fertilizer minerals n.e.c.,material
+524,kt,Domestic Extraction Used - Non-Metallic Minerals - Chemical minerals n.e.c.,material
+525,kt,Domestic Extraction Used - Non-Metallic Minerals - Industrial minerals n.e.c,material
+526,kt,Domestic Extraction Used - Non-Metallic Minerals - Salt,material
+527,kt,Domestic Extraction Used - Non-Metallic Minerals - Other non-metallic minerals n.e.c.,material
+528,Mm3,Water Consumption Green - Agriculture - rice,water
+529,Mm3,Water Consumption Green - Agriculture - wheat,water
+530,Mm3,Water Consumption Green - Agriculture - other cereals,water
+531,Mm3,Water Consumption Green - Agriculture - roots and tubers,water
+532,Mm3,Water Consumption Green - Agriculture - sugar crops,water
+533,Mm3,Water Consumption Green - Agriculture - pulses,water
+534,Mm3,Water Consumption Green - Agriculture - nuts,water
+535,Mm3,Water Consumption Green - Agriculture - oil crops,water
+536,Mm3,Water Consumption Green - Agriculture - vegetables,water
+537,Mm3,Water Consumption Green - Agriculture - fruits,water
+538,Mm3,Water Consumption Green - Agriculture - fibres,water
+539,Mm3,Water Consumption Green - Agriculture - other crops,water
+540,Mm3,Water Consumption Green - Agriculture - fodder crops,water
+541,Mm3,Water Consumption Blue - Agriculture - rice,water
+542,Mm3,Water Consumption Blue - Agriculture - wheat,water
+543,Mm3,Water Consumption Blue - Agriculture - other cereals,water
+544,Mm3,Water Consumption Blue - Agriculture - roots and tubers,water
+545,Mm3,Water Consumption Blue - Agriculture - sugar crops,water
+546,Mm3,Water Consumption Blue - Agriculture - pulses,water
+547,Mm3,Water Consumption Blue - Agriculture - nuts,water
+548,Mm3,Water Consumption Blue - Agriculture - oil crops,water
+549,Mm3,Water Consumption Blue - Agriculture - vegetables,water
+550,Mm3,Water Consumption Blue - Agriculture - fruits,water
+551,Mm3,Water Consumption Blue - Agriculture - fibres,water
+552,Mm3,Water Consumption Blue - Agriculture - other crops,water
+553,Mm3,Water Consumption Blue - Agriculture - fodder crops,water
+554,Mm3,Water Consumption Blue - Livestock - dairy cattle,water
+555,Mm3,Water Consumption Blue - Livestock - nondairy cattle,water
+556,Mm3,Water Consumption Blue - Livestock - pigs,water
+557,Mm3,Water Consumption Blue - Livestock - sheep,water
+558,Mm3,Water Consumption Blue - Livestock - goats,water
+559,Mm3,Water Consumption Blue - Livestock - buffaloes,water
+560,Mm3,Water Consumption Blue - Livestock - camels,water
+561,Mm3,Water Consumption Blue - Livestock - horses,water
+562,Mm3,Water Consumption Blue - Livestock - chicken,water
+563,Mm3,Water Consumption Blue - Livestock - turkeys,water
+564,Mm3,Water Consumption Blue - Livestock - ducks,water
+565,Mm3,Water Consumption Blue - Livestock - geese,water
+566,Mm3,Water Consumption Blue - Manufacturing - Products of meat cattle,water
+567,Mm3,Water Consumption Blue - Manufacturing - Products of meat pigs,water
+568,Mm3,Water Consumption Blue - Manufacturing - Products of meat poultry,water
+569,Mm3,Water Consumption Blue - Manufacturing - Meat products nec,water
+570,Mm3,Water Consumption Blue - Manufacturing - products of Vegetable oils and fats,water
+571,Mm3,Water Consumption Blue - Manufacturing - Dairy products,water
+572,Mm3,Water Consumption Blue - Manufacturing - Processed rice,water
+573,Mm3,Water Consumption Blue - Manufacturing - Sugar,water
+574,Mm3,Water Consumption Blue - Manufacturing - Food products nec,water
+575,Mm3,Water Consumption Blue - Manufacturing - Beverages,water
+576,Mm3,Water Consumption Blue - Manufacturing - Fish products,water
+577,Mm3,Water Consumption Blue - Manufacturing - Tobacco products (16),water
+578,Mm3,Water Consumption Blue - Manufacturing - Textiles (17),water
+579,Mm3,Water Consumption Blue - Manufacturing - Wearing apparel; furs (18),water
+580,Mm3,Water Consumption Blue - Manufacturing - Leather and leather products (19),water
+581,Mm3,Water Consumption Blue - Manufacturing - Pulp,water
+582,Mm3,"Water Consumption Blue - Manufacturing - Secondary paper for treatment, Re-processing of secondary paper into new pulp",water
+583,Mm3,Water Consumption Blue - Manufacturing - Paper and paper products,water
+584,Mm3,Water Consumption Blue - Manufacturing - Printed matter and recorded media (22),water
+585,Mm3,"Water Consumption Blue - Manufacturing - Plastics, basic",water
+586,Mm3,"Water Consumption Blue - Manufacturing - Secondary plastic for treatment, Re-processing of secondary plastic into new plastic",water
+587,Mm3,Water Consumption Blue - Manufacturing - N-fertiliser,water
+588,Mm3,Water Consumption Blue - Manufacturing - P- and other fertiliser,water
+589,Mm3,Water Consumption Blue - Manufacturing - Chemicals nec,water
+590,Mm3,Water Consumption Blue - Manufacturing - Rubber and plastic products (25),water
+591,Mm3,Water Consumption Blue - Manufacturing - Glass and glass products,water
+592,Mm3,"Water Consumption Blue - Manufacturing - Secondary glass for treatment, Re-processing of secondary glass into new glass",water
+593,Mm3,Water Consumption Blue - Manufacturing - Ceramic goods,water
+594,Mm3,"Water Consumption Blue - Manufacturing - Bricks, tiles and construction products, in baked clay",water
+595,Mm3,"Water Consumption Blue - Manufacturing - Cement, lime and plaster",water
+596,Mm3,"Water Consumption Blue - Manufacturing - Ash for treatment, Re-processing of ash into clinker",water
+597,Mm3,Water Consumption Blue - Manufacturing - Other non-metallic mineral products,water
+598,Mm3,Water Consumption Blue - Manufacturing - Basic iron and steel and of ferro-alloys and first products thereof,water
+599,Mm3,"Water Consumption Blue - Manufacturing - Secondary steel for treatment, Re-processing of secondary steel into new steel",water
+600,Mm3,Water Consumption Blue - Manufacturing - Precious metals,water
+601,Mm3,"Water Consumption Blue - Manufacturing - Secondary preciuos metals for treatment, Re-processing of secondary preciuos metals into new preciuos metals",water
+602,Mm3,Water Consumption Blue - Manufacturing - Aluminium and aluminium products,water
+603,Mm3,"Water Consumption Blue - Manufacturing - Secondary aluminium for treatment, Re-processing of secondary aluminium into new aluminium",water
+604,Mm3,"Water Consumption Blue - Manufacturing - Lead, zinc and tin and products thereof",water
+605,Mm3,"Water Consumption Blue - Manufacturing - Secondary lead for treatment, Re-processing of secondary lead into new lead",water
+606,Mm3,Water Consumption Blue - Manufacturing - Copper products,water
+607,Mm3,"Water Consumption Blue - Manufacturing - Secondary copper for treatment, Re-processing of secondary copper into new copper",water
+608,Mm3,Water Consumption Blue - Manufacturing - Other non-ferrous metal products,water
+609,Mm3,"Water Consumption Blue - Manufacturing - Secondary other non-ferrous metals for treatment, Re-processing of secondary other non-ferrous metals into new other non-ferrous metals",water
+610,Mm3,"Water Consumption Blue - Manufacturing - Fabricated metal products, except machinery and equipment (28)",water
+611,Mm3,Water Consumption Blue - Manufacturing - Machinery and equipment n.e.c. (29),water
+612,Mm3,Water Consumption Blue - Manufacturing - Office machinery and computers (30),water
+613,Mm3,Water Consumption Blue - Manufacturing - Electrical machinery and apparatus n.e.c. (31),water
+614,Mm3,"Water Consumption Blue - Manufacturing - Radio, television and communication equipment and apparatus (32)",water
+615,Mm3,"Water Consumption Blue - Manufacturing - Medical, precision and optical instruments, watches and clocks (33)",water
+616,Mm3,"Water Consumption Blue - Manufacturing - Motor vehicles, trailers and semi-trailers (34)",water
+617,Mm3,Water Consumption Blue - Manufacturing - Other transport equipment (35),water
+618,Mm3,Water Consumption Blue - Manufacturing - Furniture; other manufactured goods n.e.c. (36),water
+619,Mm3,Water Consumption Blue - Electricity - tower - Electricity by coal,water
+620,Mm3,Water Consumption Blue - Electricity - tower - Electricity by gas,water
+621,Mm3,Water Consumption Blue - Electricity - tower - Electricity by nuclear,water
+622,Mm3,Water Consumption Blue - Electricity - tower - Electricity by hydro,water
+623,Mm3,Water Consumption Blue - Electricity - tower - Electricity by wind,water
+624,Mm3,Water Consumption Blue - Electricity - tower - Electricity by petroleum and other oil derivatives,water
+625,Mm3,Water Consumption Blue - Electricity - tower - Electricity by biomass and waste,water
+626,Mm3,Water Consumption Blue - Electricity - tower - Electricity by solar photovoltaic,water
+627,Mm3,Water Consumption Blue - Electricity - tower - Electricity by solar thermal,water
+628,Mm3,"Water Consumption Blue - Electricity - tower - Electricity by tide, wave, ocean",water
+629,Mm3,Water Consumption Blue - Electricity - tower - Electricity by Geothermal,water
+630,Mm3,Water Consumption Blue - Electricity - tower - Electricity nec,water
+631,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by coal,water
+632,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by gas,water
+633,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by nuclear,water
+634,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by hydro,water
+635,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by wind,water
+636,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by petroleum and other oil derivatives,water
+637,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by biomass and waste,water
+638,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by solar photovoltaic,water
+639,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by solar thermal,water
+640,Mm3,"Water Consumption Blue - Electricity - once-through - Electricity by tide, wave, ocean",water
+641,Mm3,Water Consumption Blue - Electricity - once-through - Electricity by Geothermal,water
+642,Mm3,Water Consumption Blue - Electricity - once-through - Electricity nec,water
+643,Mm3,Water Consumption Blue - Domestic - domestic Water Consumption Blue,water
+644,Mm3,Water Withdrawal Blue - Manufacturing - Products of meat cattle,water
+645,Mm3,Water Withdrawal Blue - Manufacturing - Products of meat pigs,water
+646,Mm3,Water Withdrawal Blue - Manufacturing - Products of meat poultry,water
+647,Mm3,Water Withdrawal Blue - Manufacturing - Meat products nec,water
+648,Mm3,Water Withdrawal Blue - Manufacturing - products of Vegetable oils and fats,water
+649,Mm3,Water Withdrawal Blue - Manufacturing - Dairy products,water
+650,Mm3,Water Withdrawal Blue - Manufacturing - Processed rice,water
+651,Mm3,Water Withdrawal Blue - Manufacturing - Sugar,water
+652,Mm3,Water Withdrawal Blue - Manufacturing - Food products nec,water
+653,Mm3,Water Withdrawal Blue - Manufacturing - Beverages,water
+654,Mm3,Water Withdrawal Blue - Manufacturing - Fish products,water
+655,Mm3,Water Withdrawal Blue - Manufacturing - Tobacco products (16),water
+656,Mm3,Water Withdrawal Blue - Manufacturing - Textiles (17),water
+657,Mm3,Water Withdrawal Blue - Manufacturing - Wearing apparel; furs (18),water
+658,Mm3,Water Withdrawal Blue - Manufacturing - Leather and leather products (19),water
+659,Mm3,Water Withdrawal Blue - Manufacturing - Pulp,water
+660,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary paper for treatment, Re-processing of secondary paper into new pulp",water
+661,Mm3,Water Withdrawal Blue - Manufacturing - Paper and paper products,water
+662,Mm3,Water Withdrawal Blue - Manufacturing - Printed matter and recorded media (22),water
+663,Mm3,"Water Withdrawal Blue - Manufacturing - Plastics, basic",water
+664,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary plastic for treatment, Re-processing of secondary plastic into new plastic",water
+665,Mm3,Water Withdrawal Blue - Manufacturing - N-fertiliser,water
+666,Mm3,Water Withdrawal Blue - Manufacturing - P- and other fertiliser,water
+667,Mm3,Water Withdrawal Blue - Manufacturing - Chemicals nec,water
+668,Mm3,Water Withdrawal Blue - Manufacturing - Rubber and plastic products (25),water
+669,Mm3,Water Withdrawal Blue - Manufacturing - Glass and glass products,water
+670,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary glass for treatment, Re-processing of secondary glass into new glass",water
+671,Mm3,Water Withdrawal Blue - Manufacturing - Ceramic goods,water
+672,Mm3,"Water Withdrawal Blue - Manufacturing - Bricks, tiles and construction products, in baked clay",water
+673,Mm3,"Water Withdrawal Blue - Manufacturing - Cement, lime and plaster",water
+674,Mm3,"Water Withdrawal Blue - Manufacturing - Ash for treatment, Re-processing of ash into clinker",water
+675,Mm3,Water Withdrawal Blue - Manufacturing - Other non-metallic mineral products,water
+676,Mm3,Water Withdrawal Blue - Manufacturing - Basic iron and steel and of ferro-alloys and first products thereof,water
+677,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary steel for treatment, Re-processing of secondary steel into new steel",water
+678,Mm3,Water Withdrawal Blue - Manufacturing - Precious metals,water
+679,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary preciuos metals for treatment, Re-processing of secondary preciuos metals into new preciuos metals",water
+680,Mm3,Water Withdrawal Blue - Manufacturing - Aluminium and aluminium products,water
+681,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary aluminium for treatment, Re-processing of secondary aluminium into new aluminium",water
+682,Mm3,"Water Withdrawal Blue - Manufacturing - Lead, zinc and tin and products thereof",water
+683,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary lead for treatment, Re-processing of secondary lead into new lead",water
+684,Mm3,Water Withdrawal Blue - Manufacturing - Copper products,water
+685,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary copper for treatment, Re-processing of secondary copper into new copper",water
+686,Mm3,Water Withdrawal Blue - Manufacturing - Other non-ferrous metal products,water
+687,Mm3,"Water Withdrawal Blue - Manufacturing - Secondary other non-ferrous metals for treatment, Re-processing of secondary other non-ferrous metals into new other non-ferrous metals",water
+688,Mm3,"Water Withdrawal Blue - Manufacturing - Fabricated metal products, except machinery and equipment (28)",water
+689,Mm3,Water Withdrawal Blue - Manufacturing - Machinery and equipment n.e.c. (29),water
+690,Mm3,Water Withdrawal Blue - Manufacturing - Office machinery and computers (30),water
+691,Mm3,Water Withdrawal Blue - Manufacturing - Electrical machinery and apparatus n.e.c. (31),water
+692,Mm3,"Water Withdrawal Blue - Manufacturing - Radio, television and communication equipment and apparatus (32)",water
+693,Mm3,"Water Withdrawal Blue - Manufacturing - Medical, precision and optical instruments, watches and clocks (33)",water
+694,Mm3,"Water Withdrawal Blue - Manufacturing - Motor vehicles, trailers and semi-trailers (34)",water
+695,Mm3,Water Withdrawal Blue - Manufacturing - Other transport equipment (35),water
+696,Mm3,Water Withdrawal Blue - Manufacturing - Furniture; other manufactured goods n.e.c. (36),water
+697,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by coal,water
+698,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by gas,water
+699,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by nuclear,water
+700,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by hydro,water
+701,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by wind,water
+702,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by petroleum and other oil derivatives,water
+703,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by biomass and waste,water
+704,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by solar photovoltaic,water
+705,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by solar thermal,water
+706,Mm3,"Water Withdrawal Blue - Electricity - tower - Electricity by tide, wave, ocean",water
+707,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity by Geothermal,water
+708,Mm3,Water Withdrawal Blue - Electricity - tower - Electricity nec,water
+709,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by coal,water
+710,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by gas,water
+711,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by nuclear,water
+712,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by hydro,water
+713,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by wind,water
+714,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by petroleum and other oil derivatives,water
+715,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by biomass and waste,water
+716,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by solar photovoltaic,water
+717,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by solar thermal,water
+718,Mm3,"Water Withdrawal Blue - Electricity - once-through - Electricity by tide, wave, ocean",water
+719,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity by Geothermal,water
+720,Mm3,Water Withdrawal Blue - Electricity - once-through - Electricity nec,water
+721,Mm3,Water Withdrawal Blue - Domestic - domestic Water Withdrawal Blue,water
