@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Trade Impact — Sankey</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial; margin: 18px; }
+    #controls { margin-bottom: 12px; }
+    #chart-wrap { width: 100%; max-width: 1100px; height: 600px; }
+    canvas { width: 100% !important; height: 600px !important; }
+  </style>
+</head>
+<body>
+  <h2>Trade Impact — Sankey</h2>
+
+  <div id="controls">
+    <label for="factorSelect">Factor:</label>
+    <select id="factorSelect"></select>
+    <button id="loadBtn">Load</button>
+    <span id="info" style="margin-left:12px;color:#666"></span>
+  </div>
+
+  <div id="chart-wrap">
+    <canvas id="chart" width="1100" height="600"></canvas>
+  </div>
+
+  <!-- Chart.js and Sankey plugin (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-sankey@0.9.0/dist/chartjs-chart-sankey.min.js"></script>
+
+  <!-- Load generated data or fallback example -->
+  <script>
+    // Try to load generated data; if not found, load example.
+    function loadScript(src, onload, onerror) {
+      var s = document.createElement('script'); s.src = src;
+      s.onload = onload; s.onerror = onerror; document.head.appendChild(s);
+    }
+    function initAfterData() {
+      if (!window.tradeImpactChartData) {
+        document.getElementById('info').textContent = 'No chart data found. Run the preprocessor to generate chart_data.js or use chart_data_example.js';
+        return;
+      }
+      const dataObj = window.tradeImpactChartData;
+      const select = document.getElementById('factorSelect');
+      select.innerHTML = '';
+      (dataObj.factors || []).forEach(f => {
+        const opt = document.createElement('option'); opt.value = f; opt.textContent = f; select.appendChild(opt);
+      });
+      document.getElementById('info').textContent = `Detected source: ${dataObj.src_col} → target: ${dataObj.tgt_col}`;
+      document.getElementById('loadBtn').addEventListener('click', () => {
+        const f = select.value;
+        if (f) renderFactor(f);
+      });
+      // auto-load first entry if present
+      if (select.options.length > 0) {
+        renderFactor(select.options[0].value);
+      }
+    }
+
+    // Try to load the generated file, otherwise use example:
+    loadScript('chart_data.js', initAfterData, function () {
+      loadScript('chart_data_example.js', initAfterData, function () {
+        document.getElementById('info').textContent = 'No chart data available. Run the preprocessor or add chart_data.js';
+      });
+    });
+
+    let sankeyChart = null;
+    function renderFactor(factor) {
+      const obj = window.tradeImpactChartData;
+      if (!obj || !obj.sankeyByFactor || !obj.sankeyByFactor[factor]) {
+        alert('No sankey data available for ' + factor);
+        return;
+      }
+      const sankey = obj.sankeyByFactor[factor];
+      // Prepare links expected by Chart.js Sankey plugin: objects with source, target, value.
+      const links = (sankey.links || []).map(l => {
+        return {
+          source: l.sourceLabel || l.source,
+          target: l.targetLabel || l.target,
+          value: Number(l.value)
+        };
+      });
+
+      // Destroy previous chart
+      if (sankeyChart) sankeyChart.destroy();
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      sankeyChart = new Chart(ctx, {
+        type: 'sankey',
+        data: {
+          datasets: [{
+            label: factor,
+            data: links,
+            // optional styling:
+            colorFrom: 'rgba(54,162,235,0.75)',
+            colorTo: 'rgba(255,99,132,0.75)'
+          }]
+        },
+        options: {
+          indexAxis: 'x',
+          plugins: { legend: { display: false } },
+          elements: {
+            // tooltip formatting (plugin provides raw)
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const d = context.raw;
+                  return `${d.source} → ${d.target}: ${d.value}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Worldwide Trade Impacts Sankey</title>
+  <style>
+    :root {
+      --ink: #1d2430;
+      --muted: #59606d;
+      --card: rgba(255, 255, 255, 0.9);
+      --border: rgba(28, 35, 48, 0.12);
+      --accent: #b85c38;
+      --accent-soft: rgba(184, 92, 56, 0.12);
+      --shadow: 0 18px 45px rgba(31, 39, 52, 0.12);
+      --good: #2f6f51;
+      --bad: #a3412d;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top right, rgba(184, 92, 56, 0.22), transparent 28%),
+        radial-gradient(circle at left bottom, rgba(41, 128, 185, 0.14), transparent 30%),
+        linear-gradient(180deg, #f7f3eb 0%, #ece8dd 100%);
+      min-height: 100vh;
+    }
+
+    .shell {
+      width: min(1500px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 36px;
+    }
+
+    .hero,
+    .toolbar,
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .hero,
+    .toolbar,
+    .panel {
+      border-radius: 28px;
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+
+    .lede {
+      margin: 0;
+      max-width: 980px;
+      color: var(--muted);
+      font-size: 1.02rem;
+      line-height: 1.6;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .pill {
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 0.92rem;
+      font-weight: 600;
+    }
+
+    .toolbar {
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    .toolbar-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 170px;
+    }
+
+    .control label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .control select,
+    .control button {
+      appearance: none;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-size: 0.96rem;
+      color: var(--ink);
+      background: linear-gradient(180deg, #ffffff 0%, #f6f3ee 100%);
+    }
+
+    .control button {
+      cursor: pointer;
+      font-weight: 700;
+      background: linear-gradient(180deg, #d46f45 0%, #b85c38 100%);
+      color: #fffaf6;
+      border: none;
+      min-width: 120px;
+    }
+
+    .control button:disabled {
+      cursor: wait;
+      opacity: 0.7;
+    }
+
+    .status {
+      margin-top: 14px;
+      color: var(--good);
+      font-weight: 600;
+    }
+
+    .status[data-state="error"] {
+      color: var(--bad);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .panel {
+      padding: 18px 18px 14px;
+      min-height: 560px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+
+    .panel-copy h2 {
+      margin: 0 0 6px;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-copy p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .stat {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(29, 36, 48, 0.04);
+      border: 1px solid rgba(29, 36, 48, 0.06);
+    }
+
+    .stat .label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .stat .value {
+      display: block;
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+
+    .chart-wrap {
+      flex: 1;
+      min-height: 420px;
+      border-radius: 22px;
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 243, 235, 0.96)),
+        repeating-linear-gradient(
+          0deg,
+          rgba(29, 36, 48, 0.03),
+          rgba(29, 36, 48, 0.03) 1px,
+          transparent 1px,
+          transparent 28px
+        );
+      border: 1px solid rgba(29, 36, 48, 0.08);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .chart-wrap svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: center;
+    }
+
+    .tooltip {
+      position: fixed;
+      z-index: 1000;
+      width: min(320px, calc(100vw - 24px));
+      padding: 12px 14px;
+      border-radius: 18px;
+      border: 1px solid rgba(28, 35, 48, 0.12);
+      background: rgba(255, 252, 247, 0.97);
+      box-shadow: 0 18px 40px rgba(31, 39, 52, 0.18);
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(4px);
+      transition: opacity 0.14s ease, transform 0.14s ease;
+    }
+
+    .tooltip.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .tooltip.is-click {
+      border-color: rgba(184, 92, 56, 0.22);
+      background: rgba(255, 248, 242, 0.98);
+    }
+
+    .tooltip-title {
+      margin: 0 0 8px;
+      font-size: 0.98rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .tooltip-body {
+      display: grid;
+      gap: 8px;
+    }
+
+    .tooltip-row {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+
+    .tooltip-key {
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .tooltip-value {
+      font-size: 0.9rem;
+      font-weight: 600;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .sankey-link {
+      cursor: pointer;
+      transition: opacity 0.18s ease, stroke-opacity 0.18s ease;
+    }
+
+    .sankey-link:hover {
+      opacity: 1;
+      stroke-opacity: 0.78;
+    }
+
+    .sankey-link.is-selected {
+      opacity: 1;
+      stroke-opacity: 0.95;
+      filter: drop-shadow(0 0 7px rgba(184, 92, 56, 0.35));
+    }
+
+    .sankey-node {
+      transition: opacity 0.18s ease;
+    }
+
+    .sankey-node:hover {
+      opacity: 0.96;
+    }
+
+    .node-label {
+      font-size: 12px;
+      fill: #243040;
+      font-weight: 700;
+      dominant-baseline: middle;
+    }
+
+    .node-value {
+      font-size: 11px;
+      fill: #5f6977;
+      dominant-baseline: middle;
+    }
+
+    @media (max-width: 1100px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .shell {
+        width: min(100% - 18px, 100%);
+      }
+
+      .hero,
+      .toolbar,
+      .panel {
+        border-radius: 20px;
+      }
+
+      .panel-head,
+      .toolbar-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .stats {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <h1 id="page-title">Worldwide Trade Impacts Sankey</h1>
+      <p id="page-lede" class="lede">
+        Sankey charts representing one industry to the its target.
+      </p>
+      <div class="hero-meta">
+        <span id="selection-pill" class="pill">Selection: --</span>
+        <span id="rule-pill" class="pill">Top 5 industry1 sources, excluding WHOLE and CONST</span>
+        <span class="pill">No server required</span>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Dataset controls">
+      <div class="toolbar-row">
+        <div class="control">
+          <label for="country-select">Country</label>
+          <select id="country-select"></select>
+        </div>
+        <div class="control">
+          <label for="year-select">Year</label>
+          <select id="year-select"></select>
+        </div>
+        <div class="control">
+          <label for="load-button">Action</label>
+          <button id="load-button" type="button">Load</button>
+        </div>
+      </div>
+      <div id="status-text" class="status">Preparing dashboard...</div>
+    </section>
+
+    <section id="chart-grid" class="grid" aria-label="Sankey chart grid"></section>
+
+    <p class="footer-note">
+      Open this file directly in your browser. Hover a line for a quick read and click a line to pin deeper details.
+    </p>
+  </main>
+
+  <div id="hover-tooltip" class="tooltip" aria-hidden="true"></div>
+  <div id="click-tooltip" class="tooltip is-click" aria-hidden="true"></div>
+  <script src="./sankey-data.js"></script>
+  <script src="./chart.js"></script>
+</body>
+</html>
