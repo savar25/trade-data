@@ -1,5 +1,6 @@
 (function () {
   const manifest = window.TRADE_SANKEY_MANIFEST;
+  const resourceManifest = window.TRADE_RESOURCE_DATA;
   const chartGrid = document.getElementById("chart-grid");
   const countrySelect = document.getElementById("country-select");
   const yearSelect = document.getElementById("year-select");
@@ -14,7 +15,55 @@
     return;
   }
 
-  const panelCount = 2;
+  const panelConfigs = [
+    {
+      kind: "impact",
+      title: "Impact Flow 1",
+      selectable: true,
+      defaultIndicatorIndex: 0,
+      note: "trade_impact.csv",
+      stats: [
+        { key: "total", label: "Displayed Total" },
+        { key: "scope", label: "Industry1 Scope" },
+        { key: "largest", label: "Largest Link" }
+      ]
+    },
+    {
+      kind: "impact",
+      title: "Impact Flow 2",
+      selectable: true,
+      defaultIndicatorIndex: 1,
+      note: "trade_impact.csv",
+      stats: [
+        { key: "total", label: "Displayed Total" },
+        { key: "scope", label: "Industry1 Scope" },
+        { key: "largest", label: "Largest Link" }
+      ]
+    },
+    {
+      kind: "resource-flow",
+      title: "Resource Flow",
+      selectable: false,
+      note: "trade_resource.csv",
+      stats: [
+        { key: "total", label: "Displayed Total" },
+        { key: "scope", label: "Industry1 Scope" },
+        { key: "largest", label: "Largest Link" }
+      ]
+    },
+    {
+      kind: "resource-mix",
+      title: "Resource Mix",
+      selectable: false,
+      note: "trade_resource.csv",
+      stats: [
+        { key: "total", label: "Visible Buckets" },
+        { key: "scope", label: "Dominant Bucket" },
+        { key: "largest", label: "Spotlight Flow" }
+      ]
+    }
+  ];
+
   const compactFormatter = new Intl.NumberFormat("en-US", {
     notation: "compact",
     maximumFractionDigits: 2
@@ -25,10 +74,24 @@
 
   let sankeyData = null;
   let activeDatasetScript = null;
-  let selectedPath = null;
+  let selectedMark = null;
+  let activeSelection = {
+    country: manifest.defaultSelection.country,
+    year: manifest.defaultSelection.year
+  };
   const panels = [];
 
-  function titleizeIndicator(indicator) {
+  function startCase(text) {
+    return String(text || "")
+      .split(" ")
+      .filter(Boolean)
+      .map(function (part) {
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      })
+      .join(" ");
+  }
+
+  function titleizeLabel(label) {
     const replacements = {
       air_emissions: "Air Emissions",
       employment: "Employment",
@@ -44,10 +107,33 @@
       Employment_total: "Employment Total",
       Energy_total: "Energy Total",
       Land_total: "Land Total",
-      impact_intensity: "Impact Intensity"
+      impact_intensity: "Impact Intensity",
+      "natural_resource/water": "Water",
+      "natural_resource/energy": "Energy",
+      "natural_resource/land": "Land",
+      "resources_Water_Consumption": "Water Consumption",
+      "resources_Water_Withdrawal": "Water Withdrawal",
+      "resources_Energy": "Energy",
+      "resources_Land_Crops": "Land Crops",
+      "resources_Land_Forest": "Land Forest",
+      "resources_Land_Other": "Land Other",
+      "resources_Crops": "Crops",
+      "emission/air": "Air Emissions"
     };
 
-    return replacements[indicator] || indicator.replace(/_/g, " ");
+    if (replacements[label]) {
+      return replacements[label];
+    }
+
+    return startCase(
+      String(label || "")
+        .replace(/^resources_/, "")
+        .replace(/^materials_/, "")
+        .replace(/^natural_resource\//, "")
+        .replace(/^emission\//, "")
+        .replace(/_/g, " ")
+        .replace(/\//g, " ")
+    );
   }
 
   function formatCompact(value) {
@@ -135,41 +221,38 @@
     tooltip.setAttribute("aria-hidden", "true");
   }
 
-  function showHoverTooltip(indicator, link, panelNumber, clientX, clientY) {
-    showTooltip(
-      hoverTooltip,
-      "Hover Preview",
-      buildHoverRows(indicator, link, panelNumber),
-      clientX + 18,
-      clientY + 18
-    );
+  function resetDetailPanels() {
+    if (selectedMark) {
+      selectedMark.classList.remove("is-selected");
+      selectedMark = null;
+    }
+    hideTooltip(hoverTooltip);
+    hideTooltip(clickTooltip);
   }
 
-  function showClickTooltip(indicator, link, panelNumber, clientX, clientY) {
-    showTooltip(
-      clickTooltip,
-      "Pinned Line",
-      buildClickRows(indicator, link, panelNumber),
-      clientX + 20,
-      clientY + 20
-    );
-  }
+  function wireInteractiveMark(mark, hoverRowsFactory, clickRowsFactory) {
+    mark.classList.add("interactive-mark");
 
-  function buildHoverRows(indicator, link, panelNumber) {
-    return [
-      { label: "Chart", value: "Chart " + panelNumber },
-      { label: "Indicator", value: titleizeIndicator(indicator) },
-      { label: "Flow", value: link.source + " -> " + link.target },
-      { label: "Value", value: formatExact(link.value) }
-    ];
-  }
+    mark.addEventListener("mouseenter", function (event) {
+      showTooltip(hoverTooltip, "Hover Preview", hoverRowsFactory(), event.clientX + 18, event.clientY + 18);
+    });
 
-  function buildClickRows(indicator, link, panelNumber) {
-    const rows = buildHoverRows(indicator, link, panelNumber);
-    rows.push({ label: "Trade ID", value: String(link.trade_id) });
-    rows.push({ label: "Amount", value: formatExact(link.amount) });
-    rows.push({ label: "Impact", value: formatExact(link.total_impact_value) });
-    return rows;
+    mark.addEventListener("mousemove", function (event) {
+      showTooltip(hoverTooltip, "Hover Preview", hoverRowsFactory(), event.clientX + 18, event.clientY + 18);
+    });
+
+    mark.addEventListener("mouseleave", function () {
+      hideTooltip(hoverTooltip);
+    });
+
+    mark.addEventListener("click", function (event) {
+      if (selectedMark) {
+        selectedMark.classList.remove("is-selected");
+      }
+      selectedMark = mark;
+      selectedMark.classList.add("is-selected");
+      showTooltip(clickTooltip, "Pinned Detail", clickRowsFactory(), event.clientX + 20, event.clientY + 20);
+    });
   }
 
   function indicatorColumns() {
@@ -180,7 +263,7 @@
 
   function defaultIndicators() {
     const defaults = sankeyData && sankeyData.defaults ? sankeyData.defaults : manifest.defaults;
-    return defaults && defaults.length ? defaults.slice(0, panelCount) : indicatorColumns().slice(0, panelCount);
+    return defaults && defaults.length ? defaults.slice(0, 2) : indicatorColumns().slice(0, 2);
   }
 
   function setIndicatorOptions(select, selectedValue) {
@@ -189,7 +272,7 @@
     columns.forEach(function (column) {
       const option = document.createElement("option");
       option.value = column;
-      option.textContent = titleizeIndicator(column);
+      option.textContent = titleizeLabel(column);
       if (column === selectedValue) {
         option.selected = true;
       }
@@ -197,33 +280,42 @@
     });
   }
 
-  function buildPanel(panelIndex, indicator) {
+  function buildPanel(panelIndex, config) {
     const panel = createElement("article", "panel");
     panel.dataset.panel = String(panelIndex + 1);
 
     const head = createElement("div", "panel-head");
     const copy = createElement("div", "panel-copy");
-    const title = createElement("h2", "", "Chart " + (panelIndex + 1));
+    const title = createElement("h2", "", config.title);
     const subtitle = createElement("p", "", "Choose a country and year, then click Load.");
     copy.append(title, subtitle);
 
-    const control = createElement("div", "control");
-    const label = createElement("label", "", "Indicator");
-    label.htmlFor = "indicator-" + panelIndex;
-    const select = createElement("select");
-    select.id = "indicator-" + panelIndex;
-    setIndicatorOptions(select, indicator);
-    control.append(label, select);
-    head.append(copy, control);
+    let select = null;
+    if (config.selectable) {
+      const control = createElement("div", "control");
+      const label = createElement("label", "", "Indicator");
+      label.htmlFor = "indicator-" + panelIndex;
+      select = createElement("select");
+      select.id = "indicator-" + panelIndex;
+      const preferred = defaultIndicators()[config.defaultIndicatorIndex] || indicatorColumns()[0];
+      setIndicatorOptions(select, preferred);
+      control.append(label, select);
+      head.append(copy, control);
+    } else {
+      const note = createElement("div", "panel-note", config.note);
+      head.append(copy, note);
+    }
 
     const stats = createElement("div", "stats");
-    const totalStat = createElement("div", "stat");
-    totalStat.innerHTML = '<span class="label">Displayed Total</span><span class="value" data-role="total">0</span>';
-    const sourcesStat = createElement("div", "stat");
-    sourcesStat.innerHTML = '<span class="label">Industry1 Scope</span><span class="value" data-role="sources">Awaiting load</span>';
-    const topLinkStat = createElement("div", "stat");
-    topLinkStat.innerHTML = '<span class="label">Largest Link</span><span class="value" data-role="top-link">Awaiting load</span>';
-    stats.append(totalStat, sourcesStat, topLinkStat);
+    const statValues = {};
+    config.stats.forEach(function (stat) {
+      const statNode = createElement("div", "stat");
+      statNode.innerHTML =
+        '<span class="label">' + stat.label + '</span>' +
+        '<span class="value" data-role="' + stat.key + '">Awaiting load</span>';
+      stats.appendChild(statNode);
+      statValues[stat.key] = statNode.querySelector('[data-role="' + stat.key + '"]');
+    });
 
     const chartWrap = createElement("div", "chart-wrap");
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -235,30 +327,35 @@
     chartGrid.appendChild(panel);
 
     const panelState = {
+      config: config,
       panel: panel,
       title: title,
       subtitle: subtitle,
       select: select,
       svg: svg,
-      totalValue: totalStat.querySelector('[data-role="total"]'),
-      sourceValue: sourcesStat.querySelector('[data-role="sources"]'),
-      topLinkValue: topLinkStat.querySelector('[data-role="top-link"]')
+      statValues: statValues
     };
 
-    select.addEventListener("change", function () {
-      resetDetailPanels();
-      renderPanel(panelState, select.value);
-    });
+    if (select) {
+      select.addEventListener("change", function () {
+        resetDetailPanels();
+        renderPanel(panelState);
+      });
+    }
 
     panels.push(panelState);
   }
 
+  function setPanelStats(panelState, values) {
+    panelState.config.stats.forEach(function (stat) {
+      panelState.statValues[stat.key].textContent = values[stat.key] || "Awaiting load";
+    });
+  }
+
   function showEmpty(panelState, message) {
-    panelState.title.textContent = "Chart " + panelState.panel.dataset.panel;
+    panelState.title.textContent = panelState.config.title;
     panelState.subtitle.textContent = message;
-    panelState.totalValue.textContent = "0";
-    panelState.sourceValue.textContent = "Awaiting load";
-    panelState.topLinkValue.textContent = "Awaiting load";
+    setPanelStats(panelState, {});
     panelState.svg.innerHTML = "";
 
     const empty = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -268,15 +365,6 @@
     empty.setAttribute("fill", "#59606d");
     empty.textContent = message;
     panelState.svg.appendChild(empty);
-  }
-
-  function resetDetailPanels() {
-    if (selectedPath) {
-      selectedPath.classList.remove("is-selected");
-      selectedPath = null;
-    }
-    hideTooltip(hoverTooltip);
-    hideTooltip(clickTooltip);
   }
 
   function buildLayout(links) {
@@ -338,8 +426,12 @@
       targetY += node.height + padTarget;
     });
 
-    const sourceMap = new Map(sourceNodes.map(function (node) { return [node.label, node]; }));
-    const targetMap = new Map(targetNodes.map(function (node) { return [node.label, node]; }));
+    const sourceMap = new Map(sourceNodes.map(function (node) {
+      return [node.label, node];
+    }));
+    const targetMap = new Map(targetNodes.map(function (node) {
+      return [node.label, node];
+    }));
     const sourceOffsets = new Map();
     const targetOffsets = new Map();
 
@@ -369,8 +461,6 @@
     });
 
     return {
-      width: width,
-      height: height,
       nodeWidth: nodeWidth,
       sourceNodes: sourceNodes,
       targetNodes: targetNodes,
@@ -378,48 +468,18 @@
     };
   }
 
-  function renderPanel(panelState, indicator) {
-    if (!sankeyData || !sankeyData.dataset) {
-      showEmpty(panelState, "Choose country and year, then click Load.");
-      return;
-    }
-
-    const indicatorData = sankeyData.dataset[indicator];
-    const links = indicatorData && indicatorData.links ? indicatorData.links.map(function (link) {
-      return {
-        trade_id: Number(link.trade_id),
-        source: link.source,
-        target: link.target,
-        value: Number(link.value),
-        amount: Number(link.amount),
-        total_impact_value: Number(link.total_impact_value)
-      };
-    }) : [];
-
-    panelState.title.textContent = "Chart " + panelState.panel.dataset.panel + ": " + titleizeIndicator(indicator);
-    panelState.subtitle.textContent =
-      "Top " + manifest.sourceLimit + " industry1 sources, excluding " +
-      manifest.excludedSources.join(" and ") + ", with strongest target flow.";
-
+  function renderSankeyPanel(panelState, options) {
+    panelState.title.textContent = options.title;
+    panelState.subtitle.textContent = options.subtitle;
+    setPanelStats(panelState, options.stats);
     panelState.svg.innerHTML = "";
 
-    if (!links.length) {
-      showEmpty(panelState, "No eligible rows for this indicator.");
+    if (!options.links.length) {
+      showEmpty(panelState, options.emptyMessage || "No eligible rows for this view.");
       return;
     }
 
-    const total = links.reduce(function (sum, link) {
-      return sum + link.value;
-    }, 0);
-    const topLink = links[0];
-    const targetSet = new Set(links.map(function (link) { return link.target; }));
-    const layout = buildLayout(links);
-    const topSources = indicatorData.top_sources || [];
-
-    panelState.totalValue.textContent = formatCompact(total) + " (" + formatExact(total) + ")";
-    panelState.sourceValue.textContent = topSources.join(", ") + " | " + targetSet.size + " targets";
-    panelState.topLinkValue.textContent =
-      topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")";
+    const layout = buildLayout(options.links);
 
     layout.links.forEach(function (link) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -429,33 +489,16 @@
       path.setAttribute("stroke", colorFor(link.data.source, 0.38));
       path.setAttribute("stroke-width", Math.max(link.thickness, 1));
       path.setAttribute("stroke-linecap", "round");
-      appendTitle(
+      appendTitle(path, options.title + "\n" + options.buildTitle(link.data));
+      wireInteractiveMark(
         path,
-        [
-      titleizeIndicator(indicator) + ": " + formatExact(link.data.value),
-          "Flow: " + link.data.source + " -> " + link.data.target,
-          "Trade ID: " + link.data.trade_id,
-          "Trade Amount: " + formatExact(link.data.amount),
-          "Total Impact Value: " + formatExact(link.data.total_impact_value)
-        ].join("\n")
-      );
-      path.addEventListener("mouseenter", function (event) {
-        showHoverTooltip(indicator, link.data, panelState.panel.dataset.panel, event.clientX, event.clientY);
-      });
-      path.addEventListener("mousemove", function (event) {
-        showHoverTooltip(indicator, link.data, panelState.panel.dataset.panel, event.clientX, event.clientY);
-      });
-      path.addEventListener("mouseleave", function () {
-        hideTooltip(hoverTooltip);
-      });
-      path.addEventListener("click", function (event) {
-        if (selectedPath) {
-          selectedPath.classList.remove("is-selected");
+        function () {
+          return options.buildHoverRows(link.data);
+        },
+        function () {
+          return options.buildClickRows(link.data);
         }
-        selectedPath = path;
-        selectedPath.classList.add("is-selected");
-        showClickTooltip(indicator, link.data, panelState.panel.dataset.panel, event.clientX, event.clientY);
-      });
+      );
       panelState.svg.appendChild(path);
     });
 
@@ -528,15 +571,355 @@
     });
   }
 
+  function renderBarPanel(panelState, options) {
+    panelState.title.textContent = options.title;
+    panelState.subtitle.textContent = options.subtitle;
+    setPanelStats(panelState, options.stats);
+    panelState.svg.innerHTML = "";
+
+    if (!options.items.length) {
+      showEmpty(panelState, options.emptyMessage || "No resource mix available for this selection.");
+      return;
+    }
+
+    const width = 760;
+    const height = 430;
+    const left = 220;
+    const right = 96;
+    const top = 54;
+    const barHeight = 28;
+    const rowGap = 24;
+    const plotWidth = width - left - right;
+    const maxValue = Math.max.apply(
+      null,
+      options.items.map(function (item) {
+        return item.value;
+      }).concat([1])
+    );
+
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (tick) {
+      const x = left + plotWidth * tick;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("class", "bar-grid-line");
+      line.setAttribute("x1", x);
+      line.setAttribute("y1", top - 26);
+      line.setAttribute("x2", x);
+      line.setAttribute("y2", height - 30);
+      panelState.svg.appendChild(line);
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("class", "bar-grid-text");
+      label.setAttribute("x", x);
+      label.setAttribute("y", top - 32);
+      label.setAttribute("text-anchor", tick === 1 ? "end" : tick === 0 ? "start" : "middle");
+      label.textContent = formatCompact(maxValue * tick);
+      panelState.svg.appendChild(label);
+    });
+
+    options.items.forEach(function (item, index) {
+      const y = top + index * (barHeight + rowGap);
+      const barWidth = Math.max(4, plotWidth * (item.value / maxValue));
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("class", "bar-label");
+      label.setAttribute("x", left - 14);
+      label.setAttribute("y", y + barHeight / 2 - 3);
+      label.setAttribute("text-anchor", "end");
+      label.textContent = item.name;
+      panelState.svg.appendChild(label);
+
+      const hint = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      hint.setAttribute("class", "bar-hint");
+      hint.setAttribute("x", left - 14);
+      hint.setAttribute("y", y + barHeight / 2 + 12);
+      hint.setAttribute("text-anchor", "end");
+      hint.textContent = titleizeLabel(item.sourceFactor || "");
+      panelState.svg.appendChild(hint);
+
+      const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bar.setAttribute("class", "bar-mark");
+      bar.setAttribute("x", left);
+      bar.setAttribute("y", y);
+      bar.setAttribute("width", barWidth);
+      bar.setAttribute("height", barHeight);
+      bar.setAttribute("rx", "10");
+      bar.setAttribute("fill", colorFor(item.name, 0.82));
+      appendTitle(bar, item.name + ": " + formatExact(item.value));
+      wireInteractiveMark(
+        bar,
+        function () {
+          return options.buildHoverRows(item);
+        },
+        function () {
+          return options.buildClickRows(item);
+        }
+      );
+      panelState.svg.appendChild(bar);
+
+      const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      value.setAttribute("class", "bar-value");
+      value.setAttribute("x", Math.min(left + barWidth + 10, width - 10));
+      value.setAttribute("y", y + barHeight / 2 + 4);
+      value.setAttribute("text-anchor", left + barWidth + 90 > width ? "end" : "start");
+      if (left + barWidth + 90 > width) {
+        value.setAttribute("x", width - 12);
+      }
+      value.textContent = formatCompact(item.value);
+      panelState.svg.appendChild(value);
+    });
+  }
+
+  function getResourceSelection() {
+    if (!resourceManifest || !resourceManifest.selections || !activeSelection) {
+      return null;
+    }
+    return resourceManifest.selections[activeSelection.year + "|" + activeSelection.country] || null;
+  }
+
+  function renderImpactPanel(panelState) {
+    if (!sankeyData || !sankeyData.dataset) {
+      showEmpty(panelState, "Choose country and year, then click Load.");
+      return;
+    }
+
+    const fallbackIndicator =
+      defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
+      indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
+      indicatorColumns()[0];
+    const indicator = panelState.select && panelState.select.value ? panelState.select.value : fallbackIndicator;
+    const indicatorData = sankeyData.dataset[indicator];
+    const links = indicatorData && indicatorData.links ? indicatorData.links.map(function (link) {
+      return {
+        trade_id: Number(link.trade_id),
+        source: link.source,
+        target: link.target,
+        value: Number(link.value),
+        amount: Number(link.amount),
+        total_impact_value: Number(link.total_impact_value)
+      };
+    }) : [];
+
+    if (!links.length) {
+      showEmpty(panelState, "No eligible rows for this indicator.");
+      return;
+    }
+
+    const total = links.reduce(function (sum, link) {
+      return sum + link.value;
+    }, 0);
+    const topLink = links[0];
+    const targetCount = new Set(links.map(function (link) {
+      return link.target;
+    })).size;
+    const topSources = indicatorData.top_sources || [];
+
+    renderSankeyPanel(panelState, {
+      title: panelState.config.title + ": " + titleizeLabel(indicator),
+      subtitle:
+        "Top " + manifest.sourceLimit + " industry1 sources, excluding " +
+        manifest.excludedSources.join(" and ") + ", with strongest target flow.",
+      links: links,
+      stats: {
+        total: formatCompact(total) + " (" + formatExact(total) + ")",
+        scope: (topSources.length ? topSources.join(", ") : "No sources") + " | " + targetCount + " targets",
+        largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")"
+      },
+      buildTitle: function (link) {
+        return [
+          titleizeLabel(indicator) + ": " + formatExact(link.value),
+          "Flow: " + link.source + " -> " + link.target,
+          "Trade ID: " + link.trade_id,
+          "Trade Amount: " + formatExact(link.amount),
+          "Total Impact Value: " + formatExact(link.total_impact_value)
+        ].join("\n");
+      },
+      buildHoverRows: function (link) {
+        return [
+          { label: "Chart", value: panelState.config.title },
+          { label: "Indicator", value: titleizeLabel(indicator) },
+          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Value", value: formatExact(link.value) }
+        ];
+      },
+      buildClickRows: function (link) {
+        return [
+          { label: "Chart", value: panelState.config.title },
+          { label: "Indicator", value: titleizeLabel(indicator) },
+          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Trade ID", value: String(link.trade_id) },
+          { label: "Amount", value: formatExact(link.amount) },
+          { label: "Impact", value: formatExact(link.total_impact_value) }
+        ];
+      }
+    });
+  }
+
+  function renderResourceFlowPanel(panelState) {
+    const resourceSelection = getResourceSelection();
+    if (!resourceSelection) {
+      showEmpty(panelState, "No domestic trade_resource.csv dataset for this selection.");
+      return;
+    }
+
+    const links = (resourceSelection.flow_links || []).map(function (link) {
+      return {
+        trade_id: Number(link.trade_id),
+        source: link.source,
+        target: link.target,
+        value: Number(link.value),
+        amount: Number(link.amount)
+      };
+    });
+
+    if (!links.length) {
+      showEmpty(panelState, "No eligible resource flows for this selection.");
+      return;
+    }
+
+    const total = links.reduce(function (sum, link) {
+      return sum + link.value;
+    }, 0);
+    const topLink = links[0];
+    const targetCount = new Set(links.map(function (link) {
+      return link.target;
+    })).size;
+
+    renderSankeyPanel(panelState, {
+      title: panelState.config.title,
+      subtitle:
+        "Strongest domestic resource-intensive links drawn from " +
+        resourceSelection.source_csv + ".",
+      links: links,
+      stats: {
+        total: formatCompact(total) + " (" + formatExact(total) + ")",
+        scope:
+          (resourceSelection.top_sources && resourceSelection.top_sources.length
+            ? resourceSelection.top_sources.join(", ")
+            : "No sources") +
+          " | " + targetCount + " targets",
+        largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")"
+      },
+      buildTitle: function (link) {
+        return [
+          "Total Resources: " + formatExact(link.value),
+          "Flow: " + link.source + " -> " + link.target,
+          "Trade ID: " + link.trade_id,
+          "Trade Amount: " + formatExact(link.amount)
+        ].join("\n");
+      },
+      buildHoverRows: function (link) {
+        return [
+          { label: "Chart", value: "Resource Flow" },
+          { label: "Dataset", value: "trade_resource.csv" },
+          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Value", value: formatExact(link.value) }
+        ];
+      },
+      buildClickRows: function (link) {
+        return [
+          { label: "Chart", value: "Resource Flow" },
+          { label: "Dataset", value: "trade_resource.csv" },
+          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Trade ID", value: String(link.trade_id) },
+          { label: "Amount", value: formatExact(link.amount) },
+          { label: "Resources", value: formatExact(link.value) }
+        ];
+      }
+    });
+  }
+
+  function renderResourceMixPanel(panelState) {
+    const resourceSelection = getResourceSelection();
+    if (!resourceSelection) {
+      showEmpty(panelState, "No domestic trade_resource.csv dataset for this selection.");
+      return;
+    }
+
+    const items = (resourceSelection.summary_mix || []).slice(0, 5).map(function (item) {
+      return {
+        name: item.name,
+        value: Number(item.value),
+        sourceFactor: item.source_factor,
+        spotlight: item.spotlight || null
+      };
+    });
+
+    if (!items.length) {
+      showEmpty(panelState, "No resource category mix available for this selection.");
+      return;
+    }
+
+    const dominant = items[0];
+    const spotlight = dominant.spotlight;
+    const spotlightText = spotlight
+      ? spotlight.source + " -> " + spotlight.target
+      : "No spotlight flow";
+
+    renderBarPanel(panelState, {
+      title: panelState.config.title,
+      subtitle:
+        "High-level resource buckets summarizing the selected " +
+        resourceSelection.source_csv + " file.",
+      items: items,
+      stats: {
+        total: items.length + " buckets",
+        scope: dominant.name + " (" + formatCompact(dominant.value) + ")",
+        largest: spotlightText
+      },
+      buildHoverRows: function (item) {
+        return [
+          { label: "Chart", value: "Resource Mix" },
+          { label: "Bucket", value: item.name },
+          { label: "Factor", value: titleizeLabel(item.sourceFactor) },
+          { label: "Total", value: formatExact(item.value) }
+        ];
+      },
+      buildClickRows: function (item) {
+        const rows = [
+          { label: "Chart", value: "Resource Mix" },
+          { label: "Bucket", value: item.name },
+          { label: "Factor", value: titleizeLabel(item.sourceFactor) },
+          { label: "Total", value: formatExact(item.value) }
+        ];
+
+        if (item.spotlight) {
+          rows.push({ label: "Flow", value: item.spotlight.source + " -> " + item.spotlight.target });
+          rows.push({ label: "Trade ID", value: String(item.spotlight.trade_id) });
+          rows.push({ label: "Amount", value: formatExact(item.spotlight.amount) });
+        }
+
+        return rows;
+      }
+    });
+  }
+
+  function renderPanel(panelState) {
+    if (panelState.config.kind === "impact") {
+      renderImpactPanel(panelState);
+      return;
+    }
+
+    if (panelState.config.kind === "resource-flow") {
+      renderResourceFlowPanel(panelState);
+      return;
+    }
+
+    renderResourceMixPanel(panelState);
+  }
+
   function renderAllPanels() {
     resetDetailPanels();
-    panels.forEach(function (panelState, index) {
-      const defaults = defaultIndicators();
-      const preferred = defaults[index] || indicatorColumns()[index] || indicatorColumns()[0];
-      if (!indicatorColumns().includes(panelState.select.value)) {
-        setIndicatorOptions(panelState.select, preferred);
+    panels.forEach(function (panelState) {
+      if (panelState.select) {
+        const preferred =
+          defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
+          indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
+          indicatorColumns()[0];
+        if (!indicatorColumns().includes(panelState.select.value)) {
+          setIndicatorOptions(panelState.select, preferred);
+        }
       }
-      renderPanel(panelState, panelState.select.value || preferred);
+      renderPanel(panelState);
     });
   }
 
@@ -561,17 +944,26 @@
   }
 
   function updateHeroMeta() {
-    if (!sankeyData || !sankeyData.meta) {
+    if (activeSelection && activeSelection.country && activeSelection.year) {
+      selectionPill.textContent = "Selection: " + activeSelection.country + " / " + activeSelection.year;
+    } else {
       selectionPill.textContent = "Selection: --";
-      rulePill.textContent = "Top 5 industry1 sources, excluding WHOLE and CONST";
-      return;
     }
 
-    selectionPill.textContent =
-      "Selection: " + sankeyData.meta.country + " / " + sankeyData.meta.year;
+    const sourceLimit = sankeyData && sankeyData.meta && sankeyData.meta.source_limit
+      ? sankeyData.meta.source_limit
+      : resourceManifest && resourceManifest.meta && resourceManifest.meta.sourceLimit
+        ? resourceManifest.meta.sourceLimit
+        : manifest.sourceLimit;
+    const excludedSources = sankeyData && sankeyData.meta && sankeyData.meta.excluded_sources
+      ? sankeyData.meta.excluded_sources
+      : resourceManifest && resourceManifest.meta && resourceManifest.meta.excludedSources
+        ? resourceManifest.meta.excludedSources
+        : manifest.excludedSources;
+
     rulePill.textContent =
-      "Top " + sankeyData.meta.source_limit + " industry1 sources, excluding " +
-      sankeyData.meta.excluded_sources.join(" and ");
+      "Top " + sourceLimit + " industry1 sources, excluding " +
+      excludedSources.join(" and ");
   }
 
   function loadDataset() {
@@ -579,10 +971,16 @@
     const year = yearSelect.value;
     const datasetPath = manifest.datasetBasePath + "/" + year + "/" + country + ".js";
 
+    activeSelection = {
+      country: country,
+      year: year
+    };
+
     loadButton.disabled = true;
     countrySelect.disabled = true;
     yearSelect.disabled = true;
-    updateStatus("Loading " + country + " " + year + " domestic dataset...", false);
+    updateHeroMeta();
+    updateStatus("Loading " + country + " " + year + " domestic impact dataset...", false);
     window.TRADE_SANKEY_DATA = null;
 
     if (activeDatasetScript && activeDatasetScript.parentNode) {
@@ -598,33 +996,36 @@
 
       if (!window.TRADE_SANKEY_DATA || !window.TRADE_SANKEY_DATA.dataset) {
         sankeyData = null;
-        resetDetailPanels();
         updateHeroMeta();
         renderAllPanels();
-        updateStatus("Unable to load dataset for " + country + " " + year + ".", true);
+        updateStatus("Unable to load impact dataset for " + country + " " + year + ".", true);
         return;
       }
 
       sankeyData = window.TRADE_SANKEY_DATA;
-      resetDetailPanels();
-      panels.forEach(function (panelState, index) {
-        const defaults = defaultIndicators();
-        const nextIndicator = defaults[index] || indicatorColumns()[index] || indicatorColumns()[0];
+      panels.forEach(function (panelState) {
+        if (!panelState.select) {
+          return;
+        }
+        const nextIndicator =
+          defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
+          indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
+          indicatorColumns()[0];
         setIndicatorOptions(panelState.select, nextIndicator);
       });
       updateHeroMeta();
       renderAllPanels();
-      updateStatus("Loaded " + sankeyData.meta.country + " " + sankeyData.meta.year + " domestic dataset.", false);
+      updateStatus("Loaded " + sankeyData.meta.country + " " + sankeyData.meta.year + " domestic impact dataset.", false);
     };
+
     script.onerror = function () {
       loadButton.disabled = false;
       countrySelect.disabled = false;
       yearSelect.disabled = false;
       sankeyData = null;
-      resetDetailPanels();
       updateHeroMeta();
       renderAllPanels();
-      updateStatus("No domestic dataset file found for " + country + " " + year + ".", true);
+      updateStatus("No domestic impact dataset file found for " + country + " " + year + ".", true);
     };
 
     activeDatasetScript = script;
@@ -644,19 +1045,19 @@
   countrySelect.addEventListener("change", updateYearOptions);
   loadButton.addEventListener("click", loadDataset);
   document.addEventListener("click", function (event) {
-    if (event.target.closest(".sankey-link")) {
+    if (event.target.closest(".interactive-mark")) {
       return;
     }
-    if (selectedPath) {
-      selectedPath.classList.remove("is-selected");
-      selectedPath = null;
+    if (selectedMark) {
+      selectedMark.classList.remove("is-selected");
+      selectedMark = null;
     }
     hideTooltip(clickTooltip);
   });
 
-  for (let index = 0; index < panelCount; index += 1) {
-    buildPanel(index, defaultIndicators()[index] || indicatorColumns()[index] || indicatorColumns()[0]);
-  }
+  panelConfigs.forEach(function (config, index) {
+    buildPanel(index, config);
+  });
 
   updateHeroMeta();
   renderAllPanels();

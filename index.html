@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Worldwide Trade Impacts Sankey</title>
+  <title>Worldwide Trade Impact And Resource Dashboard</title>
   <style>
     :root {
       --ink: #1d2430;
@@ -134,6 +134,18 @@
       color: #fffaf6;
       border: none;
       min-width: 120px;
+    }
+
+    .panel-note {
+      display: inline-flex;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(29, 36, 48, 0.05);
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 700;
+      white-space: nowrap;
     }
 
     .control button:disabled {
@@ -310,6 +322,11 @@
       transition: opacity 0.18s ease, stroke-opacity 0.18s ease;
     }
 
+    .interactive-mark {
+      cursor: pointer;
+      transition: opacity 0.18s ease, stroke-opacity 0.18s ease, fill-opacity 0.18s ease;
+    }
+
     .sankey-link:hover {
       opacity: 1;
       stroke-opacity: 0.78;
@@ -340,6 +357,40 @@
       font-size: 11px;
       fill: #5f6977;
       dominant-baseline: middle;
+    }
+
+    .bar-grid-line {
+      stroke: rgba(29, 36, 48, 0.08);
+      stroke-dasharray: 4 6;
+    }
+
+    .bar-grid-text {
+      fill: #7a8390;
+      font-size: 11px;
+    }
+
+    .bar-label {
+      fill: #243040;
+      font-size: 12px;
+      font-weight: 700;
+      dominant-baseline: middle;
+    }
+
+    .bar-value {
+      fill: #5f6977;
+      font-size: 11px;
+      font-weight: 700;
+      dominant-baseline: middle;
+    }
+
+    .bar-hint {
+      fill: #7a8390;
+      font-size: 10px;
+      dominant-baseline: middle;
+    }
+
+    .bar-mark.is-selected {
+      filter: drop-shadow(0 0 7px rgba(184, 92, 56, 0.35));
     }
 
     @media (max-width: 1100px) {
@@ -374,10 +425,7 @@
 <body>
   <main class="shell">
     <section class="hero">
-      <h1 id="page-title">Worldwide Trade Impacts Sankey</h1>
-      <p id="page-lede" class="lede">
-        Sankey charts representing one industry to the its target.
-      </p>
+      <h1 id="page-title">Worldwide Trade Impact And Resource Dashboard</h1>
       <div class="hero-meta">
         <span id="selection-pill" class="pill">Selection: --</span>
         <span id="rule-pill" class="pill">Top 5 industry1 sources, excluding WHOLE and CONST</span>
@@ -405,14 +453,12 @@
 
     <section id="chart-grid" class="grid" aria-label="Sankey chart grid"></section>
 
-    <p class="footer-note">
-      Open this file directly in your browser. Hover a line for a quick read and click a line to pin deeper details.
-    </p>
   </main>
 
   <div id="hover-tooltip" class="tooltip" aria-hidden="true"></div>
   <div id="click-tooltip" class="tooltip is-click" aria-hidden="true"></div>
   <script src="./sankey-data.js"></script>
+  <script src="./trade-resource-data.js"></script>
   <script src="./chart.js"></script>
 </body>
 </html>
