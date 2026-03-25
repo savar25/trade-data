@@ -11,7 +11,7 @@
   const hoverTooltip = document.getElementById("hover-tooltip");
   const clickTooltip = document.getElementById("click-tooltip");
 
-  if (!manifest || !chartGrid || !countrySelect || !yearSelect || !loadButton || !hoverTooltip || !clickTooltip) {
+  if (!manifest || !chartGrid || !countrySelect || !yearSelect || !hoverTooltip || !clickTooltip) {
     return;
   }
 
@@ -24,7 +24,6 @@
       note: "trade_impact.csv",
       stats: [
         { key: "total", label: "Displayed Total" },
-        { key: "scope", label: "Industry1 Scope" },
         { key: "largest", label: "Largest Link" }
       ]
     },
@@ -36,7 +35,6 @@
       note: "trade_impact.csv",
       stats: [
         { key: "total", label: "Displayed Total" },
-        { key: "scope", label: "Industry1 Scope" },
         { key: "largest", label: "Largest Link" }
       ]
     },
@@ -47,7 +45,6 @@
       note: "trade_resource.csv",
       stats: [
         { key: "total", label: "Displayed Total" },
-        { key: "scope", label: "Industry1 Scope" },
         { key: "largest", label: "Largest Link" }
       ]
     },
@@ -80,6 +77,292 @@
     year: manifest.defaultSelection.year
   };
   const panels = [];
+
+  const industryNameByCode = {};
+  const industryNameByYear = {};
+  let hashSelections = [];
+
+  function normalizeCode(code) {
+    return String(code || "").trim();
+  }
+
+  function truncateIndustryName(name) {
+    const words = name.split(/\s+/);
+    const result = [];
+    for (let word of words) {
+      if (word.toLowerCase() === 'service') break;
+      result.push(word);
+      if (result.length >= 2) break;
+    }
+    return result.join(' ');
+  }
+
+  function resolveIndustryName(code) {
+    const key = normalizeCode(code);
+    const fullName = industryNameByCode[key];
+    if (fullName && fullName !== key) {
+      return truncateIndustryName(fullName);
+    }
+    return key;
+  }
+
+  function parseCsvLine(row) {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < row.length; i += 1) {
+      const char = row[i];
+      if (char === '"') {
+        if (inQuotes && row[i + 1] === '"') {
+          current += '"';
+          i += 1;
+          continue;
+        }
+        inQuotes = !inQuotes;
+        continue;
+      }
+      if (char === ',' && !inQuotes) {
+        result.push(current);
+        current = "";
+        continue;
+      }
+      current += char;
+    }
+
+    result.push(current);
+    return result;
+  }
+
+  function loadIndustryNamesForYears(years) {
+    const uniqueYears = Array.from(new Set(years.map(normalizeCode).filter(Boolean)));
+    const promises = uniqueYears.map(async function (year) {
+      if (industryNameByYear[year]) {
+        return;
+      }
+
+      async function fetchCsv(path) {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) {
+            throw new Error("HTTP " + response.status);
+          }
+          return await response.text();
+        } catch (err) {
+          return null;
+        }
+      }
+
+      let text = await fetchCsv("./year/" + encodeURIComponent(year) + "/industry.csv");
+      if (!text) {
+        text = await fetchCsv("https://raw.githubusercontent.com/ModelEarth/trade-data/main/year/" + encodeURIComponent(year) + "/industry.csv");
+      }
+      if (!text) {
+        console.warn("Industry file not found for year", year);
+        return;
+      }
+
+      const lines = text.trim().split(/\r?\n/);
+      if (!lines.length) {
+        return;
+      }
+
+      const head = parseCsvLine(lines[0]);
+      const industryIdIndex = head.indexOf("industry_id");
+      const nameIndex = head.indexOf("name");
+      if (industryIdIndex === -1 || nameIndex === -1) {
+        console.warn("industry.csv missing required columns:", year);
+        return;
+      }
+
+      const yearMap = {};
+      for (let i = 1; i < lines.length; i += 1) {
+        if (!lines[i].trim()) {
+          continue;
+        }
+        const row = parseCsvLine(lines[i]);
+        const id = normalizeCode(row[industryIdIndex]);
+        const name = String(row[nameIndex] || "").trim();
+        if (id) {
+          yearMap[id] = name || id;
+          industryNameByCode[id] = name || id;
+        }
+      }
+      industryNameByYear[year] = yearMap;
+    });
+    return Promise.all(promises);
+  }
+
+  function parseHashSelections() {
+    const hash = window.location.hash.replace(/^#/, "");
+    const params = new URLSearchParams(hash);
+    const countries = (params.get("country") || manifest.defaultSelection.country)
+      .split(",")
+      .map(normalizeCode)
+      .filter(Boolean);
+    const years = (params.get("year") || manifest.defaultSelection.year)
+      .split(",")
+      .map(normalizeCode)
+      .filter(Boolean);
+
+    const selections = [];
+    countries.forEach(function (country) {
+      if (!manifest.countries.includes(country)) {
+        return;
+      }
+      const availableYears = manifest.yearsByCountry[country] || [];
+      years.forEach(function (year) {
+        if (availableYears.includes(year)) {
+          selections.push({ country: country, year: year });
+        }
+      });
+    });
+
+    if (!selections.length) {
+      selections.push({
+        country: manifest.defaultSelection.country,
+        year: manifest.defaultSelection.year
+      });
+    }
+
+    return selections;
+  }
+
+  function updateHash(co, yr) {
+    const normalizedCountry = normalizeCode(co || countrySelect.value);
+    const normalizedYear = normalizeCode(yr || yearSelect.value);
+    window.location.hash = "country=" + encodeURIComponent(normalizedCountry) + "&year=" + encodeURIComponent(normalizedYear);
+  }
+
+  function displayIndName(code) {
+    const resolved = resolveIndustryName(code);
+    if (resolved && resolved !== code) {
+      return resolved + " (" + code + ")";
+    }
+    return code;
+  }
+
+  function flowLabel(source, target) {
+    return displayIndName(source) + " -> " + displayIndName(target);
+  }
+
+  function wrapTextLines(text, maxChars) {
+    const words = String(text || "").split(/\s+/).filter(Boolean);
+    if (!words.length) {
+      return [""];
+    }
+    const lines = [];
+    let current = "";
+    words.forEach(function (word) {
+      if (!current) {
+        current = word;
+      } else if (current.length + 1 + word.length <= maxChars) {
+        current += " " + word;
+      } else {
+        lines.push(current);
+        current = word;
+      }
+    });
+    if (current) {
+      lines.push(current);
+    }
+    return lines;
+  }
+
+  function loadDataset(countryParam, yearParam) {
+    const country = countryParam || countrySelect.value;
+    const year = yearParam || yearSelect.value;
+
+    if (!manifest.countries.includes(country)) {
+      updateStatus("Unsupported country " + country + ".", true);
+      return Promise.reject(new Error("Unsupported country"));
+    }
+
+    const yearsForCountry = manifest.yearsByCountry[country] || [];
+    if (!yearsForCountry.includes(year)) {
+      updateStatus("Unsupported year " + year + " for " + country + ".", true);
+      return Promise.reject(new Error("Unsupported year"));
+    }
+
+    activeSelection = { country: country, year: year };
+
+    countrySelect.value = country;
+    updateYearOptions();
+    yearSelect.value = year;
+
+    if (loadButton) {
+      loadButton.disabled = true;
+    }
+    countrySelect.disabled = true;
+    yearSelect.disabled = true;
+    updateHeroMeta();
+    updateStatus("Loading " + country + " " + year + " domestic impact dataset...", false);
+    window.TRADE_SANKEY_DATA = null;
+
+    if (activeDatasetScript && activeDatasetScript.parentNode) {
+      activeDatasetScript.parentNode.removeChild(activeDatasetScript);
+    }
+
+    const datasetPath = manifest.datasetBasePath + "/" + year + "/" + country + ".js";
+
+    return loadIndustryNamesForYears([year]).then(function () {
+      return new Promise(function (resolve, reject) {
+        const script = document.createElement("script");
+        script.src = datasetPath;
+
+        script.onload = function () {
+          if (loadButton) {
+            loadButton.disabled = false;
+          }
+          countrySelect.disabled = false;
+          yearSelect.disabled = false;
+
+          if (!window.TRADE_SANKEY_DATA || !window.TRADE_SANKEY_DATA.dataset) {
+            sankeyData = null;
+            updateHeroMeta();
+            renderAllPanels();
+            updateStatus("Unable to load impact dataset for " + country + " " + year + ".", true);
+            resolve();
+            return;
+          }
+
+          sankeyData = window.TRADE_SANKEY_DATA;
+          panels.forEach(function (panelState) {
+            if (!panelState.select) {
+              return;
+            }
+            const nextIndicator =
+              defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
+              indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
+              indicatorColumns()[0];
+            if (!indicatorColumns().includes(panelState.select.value)) {
+              setIndicatorOptions(panelState.select, nextIndicator);
+            }
+          });
+          updateHeroMeta();
+          renderAllPanels();
+          updateStatus("Loaded " + sankeyData.meta.country + " " + sankeyData.meta.year + " domestic impact dataset.", false);
+          resolve();
+        };
+
+        script.onerror = function () {
+          if (loadButton) {
+            loadButton.disabled = false;
+          }
+          countrySelect.disabled = false;
+          yearSelect.disabled = false;
+          sankeyData = null;
+          updateHeroMeta();
+          renderAllPanels();
+          updateStatus("No domestic impact dataset file found for " + country + " " + year + ".", true);
+          resolve();
+        };
+
+        activeDatasetScript = script;
+        document.head.appendChild(script);
+      });
+    });
+  }
 
   function startCase(text) {
     return String(text || "")
@@ -287,7 +570,7 @@
     const head = createElement("div", "panel-head");
     const copy = createElement("div", "panel-copy");
     const title = createElement("h2", "", config.title);
-    const subtitle = createElement("p", "", "Choose a country and year, then click Load.");
+    const subtitle = createElement("p", "", "Choose a country and year; data loads automatically.");
     copy.append(title, subtitle);
 
     let select = null;
@@ -396,7 +679,12 @@
 
     const sourceNodes = Array.from(sourceTotals.entries())
       .map(function (entry) {
-        return { label: entry[0], total: entry[1] };
+        const code = entry[0];
+        return {
+          code: code,
+          label: resolveIndustryName(code),
+          total: entry[1]
+        };
       })
       .sort(function (left, right) {
         return right.total - left.total || left.label.localeCompare(right.label);
@@ -404,7 +692,12 @@
 
     const targetNodes = Array.from(targetTotals.entries())
       .map(function (entry) {
-        return { label: entry[0], total: entry[1] };
+        const code = entry[0];
+        return {
+          code: code,
+          label: resolveIndustryName(code),
+          total: entry[1]
+        };
       })
       .sort(function (left, right) {
         return right.total - left.total || left.label.localeCompare(right.label);
@@ -427,10 +720,10 @@
     });
 
     const sourceMap = new Map(sourceNodes.map(function (node) {
-      return [node.label, node];
+      return [node.code, node];
     }));
     const targetMap = new Map(targetNodes.map(function (node) {
-      return [node.label, node];
+      return [node.code, node];
     }));
     const sourceOffsets = new Map();
     const targetOffsets = new Map();
@@ -512,17 +805,33 @@
       rect.setAttribute("width", layout.nodeWidth);
       rect.setAttribute("height", Math.max(node.height, 1));
       rect.setAttribute("rx", "6");
-      rect.setAttribute("fill", colorFor(node.label, 0.9));
+      rect.setAttribute("fill", colorFor(node.code, 0.9));
       rect.setAttribute("opacity", "0.92");
-      appendTitle(rect, node.label + " source total: " + formatExact(node.total));
+      appendTitle(rect, node.label + " (" + node.code + ") source total: " + formatExact(node.total));
       group.appendChild(rect);
 
       const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
       label.setAttribute("class", "node-label");
       label.setAttribute("x", node.x - 10);
-      label.setAttribute("y", node.y + node.height / 2 - 7);
       label.setAttribute("text-anchor", "end");
-      label.textContent = node.label;
+
+      const lines = wrapTextLines(node.label, 18);
+      const lineHeight = 14;
+      const top = node.y + node.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+      label.setAttribute("y", top);
+
+      lines.forEach(function (line, index) {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        if (index === 0) {
+          tspan.setAttribute("dy", "0");
+        } else {
+          tspan.setAttribute("dy", lineHeight);
+        }
+        tspan.setAttribute("x", node.x - 10);
+        tspan.textContent = line;
+        label.appendChild(tspan);
+      });
+
       group.appendChild(label);
 
       const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -546,17 +855,33 @@
       rect.setAttribute("width", layout.nodeWidth);
       rect.setAttribute("height", Math.max(node.height, 1));
       rect.setAttribute("rx", "6");
-      rect.setAttribute("fill", colorFor(node.label, 0.9));
+      rect.setAttribute("fill", colorFor(node.code, 0.9));
       rect.setAttribute("opacity", "0.92");
-      appendTitle(rect, node.label + " target total: " + formatExact(node.total));
+      appendTitle(rect, node.label + " (" + node.code + ") target total: " + formatExact(node.total));
       group.appendChild(rect);
 
       const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
       label.setAttribute("class", "node-label");
       label.setAttribute("x", node.x + layout.nodeWidth + 10);
-      label.setAttribute("y", node.y + node.height / 2 - 7);
       label.setAttribute("text-anchor", "start");
-      label.textContent = node.label;
+
+      const lines = wrapTextLines(node.label, 18);
+      const lineHeight = 14;
+      const top = node.y + node.height / 2 - ((lines.length - 1) * lineHeight) / 2;
+      label.setAttribute("y", top);
+
+      lines.forEach(function (line, index) {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        if (index === 0) {
+          tspan.setAttribute("dy", "0");
+        } else {
+          tspan.setAttribute("dy", lineHeight);
+        }
+        tspan.setAttribute("x", node.x + layout.nodeWidth + 10);
+        tspan.textContent = line;
+        label.appendChild(tspan);
+      });
+
       group.appendChild(label);
 
       const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -678,7 +1003,7 @@
 
   function renderImpactPanel(panelState) {
     if (!sankeyData || !sankeyData.dataset) {
-      showEmpty(panelState, "Choose country and year, then click Load.");
+      showEmpty(panelState, "Choose a country and year; data loads automatically.");
       return;
     }
 
@@ -712,6 +1037,9 @@
       return link.target;
     })).size;
     const topSources = indicatorData.top_sources || [];
+    const topSourceNames = topSources.map(resolveIndustryName);
+    const topLinkSourceName = resolveIndustryName(topLink.source);
+    const topLinkTargetName = resolveIndustryName(topLink.target);
 
     renderSankeyPanel(panelState, {
       title: panelState.config.title + ": " + titleizeLabel(indicator),
@@ -721,13 +1049,12 @@
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
-        scope: (topSources.length ? topSources.join(", ") : "No sources") + " | " + targetCount + " targets",
         largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")"
       },
       buildTitle: function (link) {
         return [
           titleizeLabel(indicator) + ": " + formatExact(link.value),
-          "Flow: " + link.source + " -> " + link.target,
+          "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
           "Trade Amount: " + formatExact(link.amount),
           "Total Impact Value: " + formatExact(link.total_impact_value)
@@ -737,7 +1064,7 @@
         return [
           { label: "Chart", value: panelState.config.title },
           { label: "Indicator", value: titleizeLabel(indicator) },
-          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Value", value: formatExact(link.value) }
         ];
       },
@@ -745,7 +1072,7 @@
         return [
           { label: "Chart", value: panelState.config.title },
           { label: "Indicator", value: titleizeLabel(indicator) },
-          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
           { label: "Amount", value: formatExact(link.amount) },
           { label: "Impact", value: formatExact(link.total_impact_value) }
@@ -792,17 +1119,12 @@
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
-        scope:
-          (resourceSelection.top_sources && resourceSelection.top_sources.length
-            ? resourceSelection.top_sources.join(", ")
-            : "No sources") +
-          " | " + targetCount + " targets",
         largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")"
       },
       buildTitle: function (link) {
         return [
           "Total Resources: " + formatExact(link.value),
-          "Flow: " + link.source + " -> " + link.target,
+          "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
           "Trade Amount: " + formatExact(link.amount)
         ].join("\n");
@@ -811,7 +1133,7 @@
         return [
           { label: "Chart", value: "Resource Flow" },
           { label: "Dataset", value: "trade_resource.csv" },
-          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Value", value: formatExact(link.value) }
         ];
       },
@@ -819,7 +1141,7 @@
         return [
           { label: "Chart", value: "Resource Flow" },
           { label: "Dataset", value: "trade_resource.csv" },
-          { label: "Flow", value: link.source + " -> " + link.target },
+          { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
           { label: "Amount", value: formatExact(link.amount) },
           { label: "Resources", value: formatExact(link.value) }
@@ -883,7 +1205,7 @@
         ];
 
         if (item.spotlight) {
-          rows.push({ label: "Flow", value: item.spotlight.source + " -> " + item.spotlight.target });
+          rows.push({ label: "Flow", value: flowLabel(item.spotlight.source, item.spotlight.target) });
           rows.push({ label: "Trade ID", value: String(item.spotlight.trade_id) });
           rows.push({ label: "Amount", value: formatExact(item.spotlight.amount) });
         }
@@ -966,72 +1288,6 @@
       excludedSources.join(" and ");
   }
 
-  function loadDataset() {
-    const country = countrySelect.value;
-    const year = yearSelect.value;
-    const datasetPath = manifest.datasetBasePath + "/" + year + "/" + country + ".js";
-
-    activeSelection = {
-      country: country,
-      year: year
-    };
-
-    loadButton.disabled = true;
-    countrySelect.disabled = true;
-    yearSelect.disabled = true;
-    updateHeroMeta();
-    updateStatus("Loading " + country + " " + year + " domestic impact dataset...", false);
-    window.TRADE_SANKEY_DATA = null;
-
-    if (activeDatasetScript && activeDatasetScript.parentNode) {
-      activeDatasetScript.parentNode.removeChild(activeDatasetScript);
-    }
-
-    const script = document.createElement("script");
-    script.src = datasetPath;
-    script.onload = function () {
-      loadButton.disabled = false;
-      countrySelect.disabled = false;
-      yearSelect.disabled = false;
-
-      if (!window.TRADE_SANKEY_DATA || !window.TRADE_SANKEY_DATA.dataset) {
-        sankeyData = null;
-        updateHeroMeta();
-        renderAllPanels();
-        updateStatus("Unable to load impact dataset for " + country + " " + year + ".", true);
-        return;
-      }
-
-      sankeyData = window.TRADE_SANKEY_DATA;
-      panels.forEach(function (panelState) {
-        if (!panelState.select) {
-          return;
-        }
-        const nextIndicator =
-          defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
-          indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
-          indicatorColumns()[0];
-        setIndicatorOptions(panelState.select, nextIndicator);
-      });
-      updateHeroMeta();
-      renderAllPanels();
-      updateStatus("Loaded " + sankeyData.meta.country + " " + sankeyData.meta.year + " domestic impact dataset.", false);
-    };
-
-    script.onerror = function () {
-      loadButton.disabled = false;
-      countrySelect.disabled = false;
-      yearSelect.disabled = false;
-      sankeyData = null;
-      updateHeroMeta();
-      renderAllPanels();
-      updateStatus("No domestic impact dataset file found for " + country + " " + year + ".", true);
-    };
-
-    activeDatasetScript = script;
-    document.head.appendChild(script);
-  }
-
   manifest.countries.forEach(function (country) {
     const option = document.createElement("option");
     option.value = country;
@@ -1039,11 +1295,40 @@
     countrySelect.appendChild(option);
   });
 
-  countrySelect.value = manifest.defaultSelection.country;
-  updateYearOptions();
-  yearSelect.value = manifest.defaultSelection.year;
-  countrySelect.addEventListener("change", updateYearOptions);
-  loadButton.addEventListener("click", loadDataset);
+  hashSelections = parseHashSelections();
+
+  if (hashSelections.length) {
+    const first = hashSelections[0];
+    countrySelect.value = first.country;
+    updateYearOptions();
+    yearSelect.value = first.year;
+    updateHash(first.country, first.year);
+  } else {
+    countrySelect.value = manifest.defaultSelection.country;
+    updateYearOptions();
+    yearSelect.value = manifest.defaultSelection.year;
+    updateHash(manifest.defaultSelection.country, manifest.defaultSelection.year);
+    hashSelections = [{
+      country: manifest.defaultSelection.country,
+      year: manifest.defaultSelection.year
+    }];
+  }
+
+  countrySelect.addEventListener("change", function () {
+    updateYearOptions();
+    const selectedCountry = countrySelect.value;
+    const selectedYear = yearSelect.value;
+    updateHash(selectedCountry, selectedYear);
+    loadDataset(selectedCountry, selectedYear);
+  });
+
+  yearSelect.addEventListener("change", function () {
+    const selectedCountry = countrySelect.value;
+    const selectedYear = yearSelect.value;
+    updateHash(selectedCountry, selectedYear);
+    loadDataset(selectedCountry, selectedYear);
+  });
+
   document.addEventListener("click", function (event) {
     if (event.target.closest(".interactive-mark")) {
       return;
@@ -1061,5 +1346,13 @@
 
   updateHeroMeta();
   renderAllPanels();
-  loadDataset();
+
+  (async function loadHashSelections() {
+    const uniqueYears = Array.from(new Set(hashSelections.map(function (h) { return h.year; })));
+    await loadIndustryNamesForYears(uniqueYears);
+    for (let i = 0; i < hashSelections.length; i += 1) {
+      const sel = hashSelections[i];
+      await loadDataset(sel.country, sel.year);
+    }
+  }());
 }());
