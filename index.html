@@ -136,18 +136,6 @@
       min-width: 120px;
     }
 
-    .panel-note {
-      display: inline-flex;
-      align-items: center;
-      padding: 10px 12px;
-      border-radius: 999px;
-      background: rgba(29, 36, 48, 0.05);
-      color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 700;
-      white-space: nowrap;
-    }
-
     .control button:disabled {
       cursor: wait;
       opacity: 0.7;
@@ -319,7 +307,7 @@
 
     .sankey-link {
       cursor: pointer;
-      transition: opacity 0.18s ease, stroke-opacity 0.18s ease;
+      transition: filter 0.18s ease, stroke-width 0.18s ease;
     }
 
     .interactive-mark {
@@ -328,13 +316,11 @@
     }
 
     .sankey-link:hover {
-      opacity: 1;
-      stroke-opacity: 0.78;
+      stroke-width: 4px;
+      filter: drop-shadow(0 0 4px rgba(184, 92, 56, 0.5));
     }
 
     .sankey-link.is-selected {
-      opacity: 1;
-      stroke-opacity: 0.95;
       filter: drop-shadow(0 0 7px rgba(184, 92, 56, 0.35));
     }
 
@@ -428,8 +414,6 @@
       <h1 id="page-title">Worldwide Trade Impact And Resource Dashboard</h1>
       <div class="hero-meta">
         <span id="selection-pill" class="pill">Selection: --</span>
-        <span id="rule-pill" class="pill">Top 5 industry1 sources, excluding WHOLE and CONST</span>
-        <span class="pill">No server required</span>
       </div>
     </section>
 

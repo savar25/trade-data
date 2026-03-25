@@ -7,7 +7,6 @@
   const loadButton = document.getElementById("load-button");
   const statusText = document.getElementById("status-text");
   const selectionPill = document.getElementById("selection-pill");
-  const rulePill = document.getElementById("rule-pill");
   const hoverTooltip = document.getElementById("hover-tooltip");
   const clickTooltip = document.getElementById("click-tooltip");
 
@@ -21,7 +20,6 @@
       title: "Impact Flow 1",
       selectable: true,
       defaultIndicatorIndex: 0,
-      note: "trade_impact.csv",
       stats: [
         { key: "total", label: "Displayed Total" },
         { key: "largest", label: "Largest Link" }
@@ -32,7 +30,6 @@
       title: "Impact Flow 2",
       selectable: true,
       defaultIndicatorIndex: 1,
-      note: "trade_impact.csv",
       stats: [
         { key: "total", label: "Displayed Total" },
         { key: "largest", label: "Largest Link" }
@@ -42,7 +39,6 @@
       kind: "resource-flow",
       title: "Resource Flow",
       selectable: false,
-      note: "trade_resource.csv",
       stats: [
         { key: "total", label: "Displayed Total" },
         { key: "largest", label: "Largest Link" }
@@ -52,7 +48,6 @@
       kind: "resource-mix",
       title: "Resource Mix",
       selectable: false,
-      note: "trade_resource.csv",
       stats: [
         { key: "total", label: "Visible Buckets" },
         { key: "scope", label: "Dominant Bucket" },
@@ -92,7 +87,7 @@
     for (let word of words) {
       if (word.toLowerCase() === 'service') break;
       result.push(word);
-      if (result.length >= 2) break;
+      if (result.length >= 1) break;
     }
     return result.join(' ');
   }
@@ -585,8 +580,7 @@
       control.append(label, select);
       head.append(copy, control);
     } else {
-      const note = createElement("div", "panel-note", config.note);
-      head.append(copy, note);
+      head.append(copy);
     }
 
     const stats = createElement("div", "stats");
@@ -804,7 +798,7 @@
       rect.setAttribute("y", node.y);
       rect.setAttribute("width", layout.nodeWidth);
       rect.setAttribute("height", Math.max(node.height, 1));
-      rect.setAttribute("rx", "6");
+      rect.setAttribute("rx", "0");
       rect.setAttribute("fill", colorFor(node.code, 0.9));
       rect.setAttribute("opacity", "0.92");
       appendTitle(rect, node.label + " (" + node.code + ") source total: " + formatExact(node.total));
@@ -837,7 +831,7 @@
       const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
       value.setAttribute("class", "node-value");
       value.setAttribute("x", node.x - 10);
-      value.setAttribute("y", node.y + node.height / 2 + 9);
+      value.setAttribute("y", node.y + node.height / 2 + 12);
       value.setAttribute("text-anchor", "end");
       value.textContent = formatCompact(node.total);
       group.appendChild(value);
@@ -854,7 +848,7 @@
       rect.setAttribute("y", node.y);
       rect.setAttribute("width", layout.nodeWidth);
       rect.setAttribute("height", Math.max(node.height, 1));
-      rect.setAttribute("rx", "6");
+      rect.setAttribute("rx", "0");
       rect.setAttribute("fill", colorFor(node.code, 0.9));
       rect.setAttribute("opacity", "0.92");
       appendTitle(rect, node.label + " (" + node.code + ") target total: " + formatExact(node.total));
@@ -1043,9 +1037,7 @@
 
     renderSankeyPanel(panelState, {
       title: panelState.config.title + ": " + titleizeLabel(indicator),
-      subtitle:
-        "Top " + manifest.sourceLimit + " industry1 sources, excluding " +
-        manifest.excludedSources.join(" and ") + ", with strongest target flow.",
+      subtitle: "",
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
@@ -1113,9 +1105,7 @@
 
     renderSankeyPanel(panelState, {
       title: panelState.config.title,
-      subtitle:
-        "Strongest domestic resource-intensive links drawn from " +
-        resourceSelection.source_csv + ".",
+      subtitle: "",
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
@@ -1271,21 +1261,6 @@
     } else {
       selectionPill.textContent = "Selection: --";
     }
-
-    const sourceLimit = sankeyData && sankeyData.meta && sankeyData.meta.source_limit
-      ? sankeyData.meta.source_limit
-      : resourceManifest && resourceManifest.meta && resourceManifest.meta.sourceLimit
-        ? resourceManifest.meta.sourceLimit
-        : manifest.sourceLimit;
-    const excludedSources = sankeyData && sankeyData.meta && sankeyData.meta.excluded_sources
-      ? sankeyData.meta.excluded_sources
-      : resourceManifest && resourceManifest.meta && resourceManifest.meta.excludedSources
-        ? resourceManifest.meta.excludedSources
-        : manifest.excludedSources;
-
-    rulePill.textContent =
-      "Top " + sourceLimit + " industry1 sources, excluding " +
-      excludedSources.join(" and ");
   }
 
   manifest.countries.forEach(function (country) {

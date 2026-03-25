@@ -12,13 +12,10 @@
   </style>
 </head>
 <body>
-  <h2>Trade Impact — Sankey</h2>
-
   <div id="controls">
     <label for="factorSelect">Factor:</label>
     <select id="factorSelect"></select>
     <button id="loadBtn">Load</button>
-    <span id="info" style="margin-left:12px;color:#666"></span>
   </div>
 
   <div id="chart-wrap">
@@ -38,7 +35,6 @@
     }
     function initAfterData() {
       if (!window.tradeImpactChartData) {
-        document.getElementById('info').textContent = 'No chart data found. Run the preprocessor to generate chart_data.js or use chart_data_example.js';
         return;
       }
       const dataObj = window.tradeImpactChartData;
@@ -47,7 +43,6 @@
       (dataObj.factors || []).forEach(f => {
         const opt = document.createElement('option'); opt.value = f; opt.textContent = f; select.appendChild(opt);
       });
-      document.getElementById('info').textContent = `Detected source: ${dataObj.src_col} → target: ${dataObj.tgt_col}`;
       document.getElementById('loadBtn').addEventListener('click', () => {
         const f = select.value;
         if (f) renderFactor(f);
@@ -60,9 +55,7 @@
 
     // Try to load the generated file, otherwise use example:
     loadScript('chart_data.js', initAfterData, function () {
-      loadScript('chart_data_example.js', initAfterData, function () {
-        document.getElementById('info').textContent = 'No chart data available. Run the preprocessor or add chart_data.js';
-      });
+      loadScript('chart_data_example.js', initAfterData);
     });
 
     let sankeyChart = null;
