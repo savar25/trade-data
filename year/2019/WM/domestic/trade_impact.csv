@@ -1,4 +1,4 @@
-trade_id,year,region1,region2,industry1,industry2,amount,total_impact_value,factor_count,unique_factors,air_emissions,employment,energy,land,material,water,CO2_total,Water_total,Employment_total,Energy_total,Land_total,impact_intensity
+trade_id,year,region1,region2,industry1,industry2,amount,total_level,factor_count,unique_factors,air_emissions,employment,energy,land,material,water,CO2_total,Water_total,Employment_total,Energy_total,Land_total,impact_intensity
 11268,2019,WM,WM,NATUR,ELEC2,29804.18,2126549709096537.5,2.0,2.0,2126533620040132.8,0.0,0.0,0.0,16089056404.633,0.0,2126533620040132.8,0.0,0.0,0.0,0.0,71350720237.78334
 4498,2019,WM,WM,ELEC2,PUBLI,4005.12,1764811059364600.5,5.0,3.0,1764710135279048.2,0.0,100618189113.952,0.0,0.0,305896438.266,1764710135279048.2,305896438.266,0.0,100618189113.952,0.0,440638747244.67694
 4406,2019,WM,WM,ELEC2,CRUDE,3903.32,1719954227158648.2,5.0,3.0,1719855868296578.2,0.0,98060740710.622,0.0,0.0,298121359.381,1719855868296578.2,298121359.381,0.0,98060740710.622,0.0,440638796501.09344

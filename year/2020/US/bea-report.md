@@ -1,9 +1,9 @@
 # BEA Trade Analysis Validation Report
 
-**Generated**: 2026-03-17 12:00:49
+**Generated**: 2026-03-27 03:57:24
 **Year**: 2020
 **Country**: US
-**Trade Flows**: domestic
+**Trade Flows**: domestic,imports,exports
 **Force Regeneration**: False
 
 ## Optimization Status
@@ -17,11 +17,14 @@
 - Generated base trade flows with trade_id structure
 
 ### US-BEA API Integration
-- Successfully integrated US-BEA API data
+- Issues encountered:
+  - US-BEA domestic API error: Expecting value: line 1 column 1 (char 0)
+  - US-BEA imports API error: Expecting value: line 1 column 1 (char 0)
+  - US-BEA exports API error: Expecting value: line 1 column 1 (char 0)
 
 ### BEA API Usage Statistics
 - API calls made: 0
-- Cache files created: 1
+- Cache files created: 0
 
 ## BEA Enhanced Output Files Generated
 

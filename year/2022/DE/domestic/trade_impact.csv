@@ -1,4 +1,4 @@
-trade_id,year,region1,region2,industry1,industry2,amount,total_impact_value,factor_count,unique_factors,air_emissions,material,water,CO2_total,impact_intensity
+trade_id,year,region1,region2,industry1,industry2,amount,total_level,factor_count,unique_factors,air_emissions,material,water,CO2_total,impact_intensity
 4543,2022,DE,DE,ELEC1,DISTR,629.98,83285150808970.75,1.0,1.0,83285150808970.75,0.0,0.0,83285150808970.75,132202848993.57242
 4518,2022,DE,DE,ELEC1,BASIC,367.69,48610599453516.92,1.0,1.0,48610599453516.92,0.0,0.0,48610599453516.92,132205388924.1397
 4637,2022,DE,DE,ELEC1,RUBBE,305.9,40440890893966.24,1.0,1.0,40440890893966.24,0.0,0.0,40440890893966.24,132202977750.78864

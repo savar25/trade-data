@@ -1,4 +1,4 @@
-trade_id,year,region1,region2,industry1,industry2,amount,total_impact_value,factor_count,unique_factors,air_emissions,CO2_total,CH4_total,N2O_total,impact_intensity
+trade_id,year,region1,region2,industry1,industry2,amount,total_level,factor_count,unique_factors,air_emissions,CO2_total,CH4_total,N2O_total,impact_intensity
 62,2020,US,US,93197,HEALT,7926.33,5392.569,4.0,4.0,5392.569,4471.711,413.066,189.691,0.680336
 1,2020,US,US,93197,93197,2946.1,2400.704,4.0,4.0,2400.704,2105.549,218.332,6.054,0.814875
 16,2020,US,US,93197,BUSIN,2768.66,1890.76,4.0,4.0,1890.76,1535.165,175.099,47.78,0.682915

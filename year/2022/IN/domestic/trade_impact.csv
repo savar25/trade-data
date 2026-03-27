@@ -1,4 +1,4 @@
-trade_id,year,region1,region2,industry1,industry2,amount,total_impact_value,factor_count,unique_factors,air_emissions,employment,material,water,CO2_total,Water_total,Employment_total,impact_intensity
+trade_id,year,region1,region2,industry1,industry2,amount,total_level,factor_count,unique_factors,air_emissions,employment,material,water,CO2_total,Water_total,Employment_total,impact_intensity
 721,2022,IN,IN,BASIC,CONST,48611.82,1.2200012017916172e+16,2.0,2.0,1.2200010791736574e+16,0.0,0.0,1226179597.198,1.2200010791736574e+16,1226179597.198,0.0,250968015966.40842
 1631,2022,IN,IN,CEMEN,CONST,35697.32,7880037922529392.0,2.0,1.0,7880037922529392.0,0.0,0.0,0.0,7880037922529392.0,0.0,0.0,220745924975.0231
 11321,2022,IN,IN,RUBBE,CONST,21249.45,4789602269803455.0,2.0,2.0,4789602269803455.0,0.0,0.0,0.0,4789602269803455.0,0.0,0.0,225398881844.16324
