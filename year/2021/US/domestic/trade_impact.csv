@@ -1,4 +1,4 @@
-trade_id,year,region1,region2,industry1,industry2,amount,total_impact_value,factor_count,unique_factors,air_emissions,employment,land,material,water,CO2_total,Water_total,Land_total,Employment_people_total,impact_intensity
+trade_id,year,region1,region2,industry1,industry2,amount,total_level,factor_count,unique_factors,air_emissions,employment,land,material,water,CO2_total,Water_total,Land_total,Employment_people_total,impact_intensity
 3137,2021,US,US,CONST,REALE,224692.84,2.843045535543037e+16,2.0,2.0,2.8430453563394584e+16,1792035783.958,0.0,0.0,0.0,2.8430453563394584e+16,0.0,0.0,1792035783958.318,126530312917.09326
 3515,2021,US,US,CRUDE,MOTOR,197950.32,2.5081471604900396e+16,2.0,2.0,2.5081362371284436e+16,0.0,0.0,109233615960.873,0.0,2.5081362371284436e+16,0.0,0.0,0.0,126705890674.49042
 3462,2021,US,US,CRUDE,CRUDE,100937.97,1.2789435535303634e+16,2.0,2.0,1.2789379835370566e+16,0.0,0.0,55699933067.195,0.0,1.2789379835370566e+16,0.0,0.0,0.0,126705892096.93472
