@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Worldwide Trade Impact And Resource Dashboard</title>
+  <script>
+    (function () {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("embed") === "1") {
+        document.documentElement.classList.add("is-embed");
+      }
+    }());
+  </script>
   <style>
     :root {
       --ink: #1d2430;
@@ -32,10 +40,20 @@
       min-height: 100vh;
     }
 
+    html.is-embed body {
+      min-height: auto;
+      background: transparent;
+    }
+
     .shell {
       width: min(1500px, calc(100% - 32px));
       margin: 0 auto;
       padding: 28px 0 36px;
+    }
+
+    html.is-embed .shell {
+      width: min(100% - 16px, 100%);
+      padding: 10px 0 18px;
     }
 
     .hero,
@@ -56,6 +74,11 @@
     .hero {
       padding: 28px;
       margin-bottom: 18px;
+    }
+
+    html.is-embed .hero {
+      padding: 20px 22px;
+      margin-bottom: 12px;
     }
 
     h1 {
@@ -92,6 +115,10 @@
     .toolbar {
       padding: 18px;
       margin-bottom: 20px;
+    }
+
+    html.is-embed .toolbar {
+      margin-bottom: 14px;
     }
 
     .toolbar-row {
@@ -162,6 +189,10 @@
       min-height: 560px;
       display: flex;
       flex-direction: column;
+    }
+
+    html.is-embed .panel {
+      min-height: 500px;
     }
 
     .panel-head {
@@ -390,6 +421,10 @@
         width: min(100% - 18px, 100%);
       }
 
+      html.is-embed .shell {
+        width: min(100% - 10px, 100%);
+      }
+
       .hero,
       .toolbar,
       .panel {
@@ -422,6 +457,14 @@
         <div class="control">
           <label for="country-select">Country</label>
           <select id="country-select"></select>
+        </div>
+        <div class="control">
+          <label for="flow-select">Flow</label>
+          <select id="flow-select">
+            <option value="domestic">Domestic</option>
+            <option value="imports">Imports</option>
+            <option value="exports">Exports</option>
+          </select>
         </div>
         <div class="control">
           <label for="year-select">Year</label>

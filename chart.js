@@ -3,14 +3,17 @@
   const resourceManifest = window.TRADE_RESOURCE_DATA;
   const chartGrid = document.getElementById("chart-grid");
   const countrySelect = document.getElementById("country-select");
+  const flowSelect = document.getElementById("flow-select");
   const yearSelect = document.getElementById("year-select");
   const loadButton = document.getElementById("load-button");
   const statusText = document.getElementById("status-text");
   const selectionPill = document.getElementById("selection-pill");
   const hoverTooltip = document.getElementById("hover-tooltip");
   const clickTooltip = document.getElementById("click-tooltip");
+  const pageRoot = document.documentElement;
+  const runtimeConfig = window.TRADE_DASHBOARD_CONFIG || {};
 
-  if (!manifest || !chartGrid || !countrySelect || !yearSelect || !hoverTooltip || !clickTooltip) {
+  if (!manifest || !chartGrid || !countrySelect || !yearSelect || !flowSelect || !hoverTooltip || !clickTooltip) {
     return;
   }
 
@@ -22,7 +25,8 @@
       defaultIndicatorIndex: 0,
       stats: [
         { key: "total", label: "Displayed Total" },
-        { key: "largest", label: "Largest Link" }
+        { key: "largest", label: "Largest Link" },
+        { key: "leader", label: "Trade Leader" }
       ]
     },
     {
@@ -32,7 +36,8 @@
       defaultIndicatorIndex: 1,
       stats: [
         { key: "total", label: "Displayed Total" },
-        { key: "largest", label: "Largest Link" }
+        { key: "largest", label: "Largest Link" },
+        { key: "leader", label: "Trade Leader" }
       ]
     },
     {
@@ -69,16 +74,146 @@
   let selectedMark = null;
   let activeSelection = {
     country: manifest.defaultSelection.country,
-    year: manifest.defaultSelection.year
+    year: manifest.defaultSelection.year,
+    flow: manifest.defaultSelection.flow || "domestic"
   };
   const panels = [];
 
   const industryNameByCode = {};
   const industryNameByYear = {};
   let hashSelections = [];
+  let activeResourceSelection = null;
+  const impactDataCache = {};
+  const resourceSelectionCache = {};
+  const impactBaseColumns = {
+    trade_id: true,
+    year: true,
+    region1: true,
+    region2: true,
+    industry1: true,
+    industry2: true,
+    amount: true,
+    total_level: true,
+    factor_count: true,
+    unique_factors: true
+  };
+  const impactIgnoredColumns = {
+    level: true,
+    total_impact_value: true
+  };
+  const resourceBaseColumns = {
+    trade_id: true,
+    year: true,
+    region1: true,
+    region2: true,
+    industry1: true,
+    industry2: true,
+    amount: true
+  };
+  const resourceIgnoredColumns = {
+    total_resources_value: true,
+    resources_count: true,
+    unique_resources_factors: true,
+    resources_intensity: true
+  };
+  const summaryCategoryRules = {
+    Water: [
+      "natural_resource/water",
+      "resources_Water_Consumption",
+      "resources_Water_Withdrawal"
+    ],
+    Energy: [
+      "natural_resource/energy",
+      "resources_Energy"
+    ],
+    Land: [
+      "natural_resource/land",
+      "resources_Land_Crops",
+      "resources_Land_Forest",
+      "resources_Land_Other"
+    ],
+    Crops: [
+      "resources_Crops"
+    ],
+    Air: [
+      "emission/air"
+    ]
+  };
+
+  function normalizeBasePath(path) {
+    const value = String(path || "").trim();
+    if (!value || value === ".") {
+      return ".";
+    }
+    return value.replace(/\/+$/, "");
+  }
+
+  function joinPath(basePath, nextPath) {
+    const base = normalizeBasePath(basePath);
+    const next = String(nextPath || "").replace(/^\.?\//, "");
+    if (!next) {
+      return base;
+    }
+    if (!base || base === ".") {
+      return "./" + next;
+    }
+    return base + "/" + next;
+  }
+
+  const yearBasePath = normalizeBasePath(runtimeConfig.yearBasePath || "./year");
+  const datasetBasePath = normalizeBasePath(
+    runtimeConfig.datasetBasePath ||
+    (manifest && manifest.datasetBasePath ? manifest.datasetBasePath : "./sankey-datasets")
+  );
 
   function normalizeCode(code) {
     return String(code || "").trim();
+  }
+
+  function parseNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function buildRawYearPath(relativePath) {
+    const configured = runtimeConfig.rawYearBasePath;
+    if (configured) {
+      return joinPath(configured, relativePath);
+    }
+    return "https://raw.githubusercontent.com/ModelEarth/trade-data/main/year/" + relativePath;
+  }
+
+  async function fetchTextWithFallback(paths) {
+    for (let i = 0; i < paths.length; i += 1) {
+      const path = paths[i];
+      if (!path) {
+        continue;
+      }
+      try {
+        const response = await fetch(path);
+        if (!response.ok) {
+          continue;
+        }
+        return await response.text();
+      } catch (err) {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  function supportedFlows() {
+    return manifest.supportedFlows && manifest.supportedFlows.length
+      ? manifest.supportedFlows.slice()
+      : ["domestic", "imports", "exports"];
+  }
+
+  function flowsForSelection(country, year) {
+    const key = normalizeCode(country) + "|" + normalizeCode(year);
+    const flows = manifest.flowsByCountryYear && manifest.flowsByCountryYear[key]
+      ? manifest.flowsByCountryYear[key]
+      : null;
+    return flows && flows.length ? flows.slice() : supportedFlows();
   }
 
   function truncateIndustryName(name) {
@@ -135,23 +270,11 @@
       if (industryNameByYear[year]) {
         return;
       }
-
-      async function fetchCsv(path) {
-        try {
-          const response = await fetch(path);
-          if (!response.ok) {
-            throw new Error("HTTP " + response.status);
-          }
-          return await response.text();
-        } catch (err) {
-          return null;
-        }
-      }
-
-      let text = await fetchCsv("./year/" + encodeURIComponent(year) + "/industry.csv");
-      if (!text) {
-        text = await fetchCsv("https://raw.githubusercontent.com/ModelEarth/trade-data/main/year/" + encodeURIComponent(year) + "/industry.csv");
-      }
+      const relativeYearPath = encodeURIComponent(year) + "/industry.csv";
+      const text = await fetchTextWithFallback([
+        joinPath(yearBasePath, relativeYearPath),
+        buildRawYearPath(relativeYearPath)
+      ]);
       if (!text) {
         console.warn("Industry file not found for year", year);
         return;
@@ -188,14 +311,30 @@
     return Promise.all(promises);
   }
 
+  function readHashState() {
+    if (typeof window.getHash === "function") {
+      return window.getHash() || {};
+    }
+
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    return {
+      country: params.get("country") || "",
+      year: params.get("year") || "",
+      flow: params.get("flow") || ""
+    };
+  }
+
   function parseHashSelections() {
-    const hash = window.location.hash.replace(/^#/, "");
-    const params = new URLSearchParams(hash);
-    const countries = (params.get("country") || manifest.defaultSelection.country)
+    const hashState = readHashState();
+    const countries = (hashState.country || manifest.defaultSelection.country)
       .split(",")
       .map(normalizeCode)
       .filter(Boolean);
-    const years = (params.get("year") || manifest.defaultSelection.year)
+    const years = (hashState.year || manifest.defaultSelection.year)
+      .split(",")
+      .map(normalizeCode)
+      .filter(Boolean);
+    const flows = (hashState.flow || manifest.defaultSelection.flow || "domestic")
       .split(",")
       .map(normalizeCode)
       .filter(Boolean);
@@ -207,8 +346,17 @@
       }
       const availableYears = manifest.yearsByCountry[country] || [];
       years.forEach(function (year) {
-        if (availableYears.includes(year)) {
-          selections.push({ country: country, year: year });
+        if (!availableYears.includes(year)) {
+          return;
+        }
+        const availableFlows = flowsForSelection(country, year);
+        flows.forEach(function (flow) {
+          if (availableFlows.includes(flow)) {
+            selections.push({ country: country, year: year, flow: flow });
+          }
+        });
+        if (!flows.length && availableFlows.length) {
+          selections.push({ country: country, year: year, flow: availableFlows[0] });
         }
       });
     });
@@ -216,17 +364,82 @@
     if (!selections.length) {
       selections.push({
         country: manifest.defaultSelection.country,
-        year: manifest.defaultSelection.year
+        year: manifest.defaultSelection.year,
+        flow: manifest.defaultSelection.flow || "domestic"
       });
     }
 
     return selections;
   }
 
-  function updateHash(co, yr) {
+  function writeSelectionHash(co, yr, fl, notify) {
     const normalizedCountry = normalizeCode(co || countrySelect.value);
     const normalizedYear = normalizeCode(yr || yearSelect.value);
-    window.location.hash = "country=" + encodeURIComponent(normalizedCountry) + "&year=" + encodeURIComponent(normalizedYear);
+    const normalizedFlow = normalizeCode(fl || flowSelect.value || manifest.defaultSelection.flow || "domestic");
+    const nextState = {
+      country: normalizedCountry,
+      year: normalizedYear,
+      flow: normalizedFlow
+    };
+
+    if (
+      typeof window.getHash === "function" &&
+      typeof window.goHash === "function" &&
+      typeof window.updateHash === "function"
+    ) {
+      if (notify) {
+        window.goHash(nextState);
+      } else {
+        window.updateHash(nextState);
+      }
+      return;
+    }
+
+    const nextHash =
+      "country=" + encodeURIComponent(normalizedCountry) +
+      "&year=" + encodeURIComponent(normalizedYear) +
+      "&flow=" + encodeURIComponent(normalizedFlow);
+    if (notify) {
+      if (window.location.hash.replace(/^#/, "") !== nextHash) {
+        window.location.hash = nextHash;
+      }
+      return;
+    }
+
+    if (window.history && typeof window.history.replaceState === "function") {
+      window.history.replaceState(null, "", window.location.pathname + window.location.search + "#" + nextHash);
+    } else {
+      window.location.hash = nextHash;
+    }
+  }
+
+  function postToHost(type, detail) {
+    if (!window.parent || window.parent === window) {
+      return;
+    }
+
+    window.parent.postMessage({
+      type: type,
+      detail: detail
+    }, "*");
+  }
+
+  function notifyHostSelection() {
+    if (!activeSelection || !activeSelection.country || !activeSelection.year || !activeSelection.flow) {
+      return;
+    }
+
+    postToHost("trade-data:selection", {
+      country: activeSelection.country,
+      year: activeSelection.year,
+      flow: activeSelection.flow
+    });
+  }
+
+  function notifyHostHeight() {
+    postToHost("trade-data:height", {
+      height: Math.ceil(pageRoot.scrollHeight)
+    });
   }
 
   function displayIndName(code) {
@@ -264,9 +477,321 @@
     return lines;
   }
 
-  function loadDataset(countryParam, yearParam) {
+  function buildImpactDatasetFromCsvText(text, country, year, flow, sourcePath) {
+    const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+    if (!lines.length) {
+      return null;
+    }
+
+    const header = parseCsvLine(lines[0]);
+    const indexByColumn = {};
+    header.forEach(function (column, index) {
+      indexByColumn[column] = index;
+    });
+
+    const indicatorColumns = header.filter(function (column) {
+      return !impactBaseColumns[column] && !impactIgnoredColumns[column];
+    });
+    const states = {};
+    indicatorColumns.forEach(function (indicator) {
+      states[indicator] = {
+        sourceTotals: {},
+        bestLinks: {}
+      };
+    });
+
+    for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+      const row = parseCsvLine(lines[lineIndex]);
+      const source = normalizeCode(row[indexByColumn.industry1]);
+      const target = normalizeCode(row[indexByColumn.industry2]);
+      if (!source || !target || (manifest.excludedSources || []).includes(source)) {
+        continue;
+      }
+
+      const tradeId = parseNumber(row[indexByColumn.trade_id]);
+      const amount = parseNumber(row[indexByColumn.amount]);
+      const totalLevel = parseNumber(row[indexByColumn.total_level]);
+
+      indicatorColumns.forEach(function (indicator) {
+        const value = parseNumber(row[indexByColumn[indicator]]);
+        if (value <= 0) {
+          return;
+        }
+
+        const state = states[indicator];
+        state.sourceTotals[source] = (state.sourceTotals[source] || 0) + value;
+        if (!state.bestLinks[source] || value > state.bestLinks[source].value) {
+          state.bestLinks[source] = {
+            trade_id: tradeId,
+            source: source,
+            target: target,
+            value: value,
+            amount: amount,
+            total_impact_value: totalLevel
+          };
+        }
+      });
+    }
+
+    const dataset = {};
+    indicatorColumns.forEach(function (indicator) {
+      const state = states[indicator];
+      const topSources = Object.keys(state.sourceTotals)
+        .sort(function (left, right) {
+          return (state.sourceTotals[right] - state.sourceTotals[left]) || left.localeCompare(right);
+        })
+        .slice(0, manifest.sourceLimit || 5);
+      const links = topSources
+        .map(function (source) {
+          return state.bestLinks[source];
+        })
+        .filter(Boolean)
+        .sort(function (left, right) {
+          return (right.value - left.value) || left.source.localeCompare(right.source) || left.target.localeCompare(right.target);
+        });
+
+      dataset[indicator] = {
+        display_total: topSources.reduce(function (sum, source) {
+          return sum + (state.sourceTotals[source] || 0);
+        }, 0),
+        top_sources: topSources,
+        links: links
+      };
+    });
+
+    const defaults = (manifest.defaults || []).filter(function (indicator) {
+      return indicatorColumns.includes(indicator);
+    });
+
+    return {
+      meta: {
+        year: year,
+        country: country,
+        flow: flow,
+        excluded_sources: manifest.excludedSources || [],
+        source_limit: manifest.sourceLimit || 5,
+        source_csv: sourcePath
+      },
+      indicatorColumns: indicatorColumns,
+      defaults: defaults.length ? defaults : indicatorColumns.slice(0, 2),
+      dataset: dataset
+    };
+  }
+
+  function buildResourceSelectionFromCsvText(text, sourcePath) {
+    const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+    if (!lines.length) {
+      return null;
+    }
+
+    const header = parseCsvLine(lines[0]);
+    const indexByColumn = {};
+    header.forEach(function (column, index) {
+      indexByColumn[column] = index;
+    });
+    const factorColumns = header.filter(function (column) {
+      return !resourceBaseColumns[column] && !resourceIgnoredColumns[column];
+    });
+
+    const sourceTotals = {};
+    const bestLinks = {};
+    const factorTotals = {};
+    const strongestFactors = {};
+    let eligibleRows = 0;
+
+    for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+      const row = parseCsvLine(lines[lineIndex]);
+      const source = normalizeCode(row[indexByColumn.industry1]);
+      const target = normalizeCode(row[indexByColumn.industry2]);
+      const totalResourcesValue = parseNumber(row[indexByColumn.total_resources_value]);
+      if (!source || !target || (manifest.excludedSources || []).includes(source) || totalResourcesValue <= 0) {
+        continue;
+      }
+
+      eligibleRows += 1;
+      const tradeId = parseNumber(row[indexByColumn.trade_id]);
+      const amount = parseNumber(row[indexByColumn.amount]);
+
+      sourceTotals[source] = (sourceTotals[source] || 0) + totalResourcesValue;
+      if (!bestLinks[source] || totalResourcesValue > bestLinks[source].value) {
+        bestLinks[source] = {
+          trade_id: tradeId,
+          source: source,
+          target: target,
+          value: totalResourcesValue,
+          amount: amount
+        };
+      }
+
+      factorColumns.forEach(function (factor) {
+        const factorValue = parseNumber(row[indexByColumn[factor]]);
+        if (factorValue <= 0) {
+          return;
+        }
+
+        factorTotals[factor] = (factorTotals[factor] || 0) + factorValue;
+        if (!strongestFactors[factor] || factorValue > strongestFactors[factor].value) {
+          strongestFactors[factor] = {
+            trade_id: tradeId,
+            source: source,
+            target: target,
+            value: factorValue,
+            amount: amount,
+            factor: factor
+          };
+        }
+      });
+    }
+
+    const topSources = Object.keys(sourceTotals)
+      .sort(function (left, right) {
+        return (sourceTotals[right] - sourceTotals[left]) || left.localeCompare(right);
+      })
+      .slice(0, manifest.sourceLimit || 5);
+
+    const summaryMix = Object.keys(summaryCategoryRules).map(function (label) {
+      const columns = summaryCategoryRules[label].filter(function (column) {
+        return factorTotals[column] > 0;
+      });
+      if (!columns.length) {
+        return null;
+      }
+      const preferredColumn = columns[0];
+      return {
+        name: label,
+        value: factorTotals[preferredColumn],
+        source_factor: preferredColumn,
+        spotlight: strongestFactors[preferredColumn] || null
+      };
+    }).filter(Boolean).sort(function (left, right) {
+      return (right.value - left.value) || left.name.localeCompare(right.name);
+    });
+
+    return {
+      source_csv: sourcePath,
+      eligible_rows: eligibleRows,
+      top_sources: topSources,
+      top_source_total: topSources.reduce(function (sum, source) {
+        return sum + (sourceTotals[source] || 0);
+      }, 0),
+      flow_links: topSources
+        .map(function (source) {
+          return bestLinks[source];
+        })
+        .filter(Boolean)
+        .sort(function (left, right) {
+          return (right.value - left.value) || left.source.localeCompare(right.source) || left.target.localeCompare(right.target);
+        }),
+      factor_mix: Object.keys(factorTotals).map(function (factor) {
+        return {
+          name: factor,
+          value: factorTotals[factor]
+        };
+      }).sort(function (left, right) {
+        return (right.value - left.value) || left.name.localeCompare(right.name);
+      }),
+      factor_spotlight: Object.keys(factorTotals)
+        .sort(function (left, right) {
+          return (factorTotals[right] - factorTotals[left]) || left.localeCompare(right);
+        })
+        .slice(0, 6)
+        .map(function (factor) {
+          return strongestFactors[factor];
+        })
+        .filter(Boolean),
+      summary_mix: summaryMix
+    };
+  }
+
+  function loadDatasetScript(path) {
+    return new Promise(function (resolve) {
+      if (activeDatasetScript && activeDatasetScript.parentNode) {
+        activeDatasetScript.parentNode.removeChild(activeDatasetScript);
+      }
+
+      window.TRADE_SANKEY_DATA = null;
+      const script = document.createElement("script");
+      script.src = path;
+      script.onload = function () {
+        activeDatasetScript = script;
+        resolve(window.TRADE_SANKEY_DATA && window.TRADE_SANKEY_DATA.dataset ? window.TRADE_SANKEY_DATA : null);
+      };
+      script.onerror = function () {
+        activeDatasetScript = null;
+        resolve(null);
+      };
+      document.head.appendChild(script);
+    });
+  }
+
+  async function loadImpactSelection(country, year, flow) {
+    const cacheKey = year + "|" + country + "|" + flow;
+    if (impactDataCache[cacheKey]) {
+      return impactDataCache[cacheKey];
+    }
+
+    const scriptPaths = [
+      joinPath(datasetBasePath, year + "/" + country + "/" + flow + ".js")
+    ];
+    if (flow === "domestic") {
+      scriptPaths.push(joinPath(datasetBasePath, year + "/" + country + ".js"));
+    }
+
+    for (let index = 0; index < scriptPaths.length; index += 1) {
+      const scripted = await loadDatasetScript(scriptPaths[index]);
+      if (scripted) {
+        impactDataCache[cacheKey] = scripted;
+        return scripted;
+      }
+    }
+
+    const relativeCsvPath = year + "/" + country + "/" + flow + "/trade_impact.csv";
+    const text = await fetchTextWithFallback([
+      joinPath(yearBasePath, relativeCsvPath),
+      buildRawYearPath(relativeCsvPath)
+    ]);
+    if (!text) {
+      return null;
+    }
+
+    const built = buildImpactDatasetFromCsvText(text, country, year, flow, "year/" + relativeCsvPath);
+    if (built) {
+      impactDataCache[cacheKey] = built;
+    }
+    return built;
+  }
+
+  async function loadResourceSelection(country, year, flow) {
+    const cacheKey = year + "|" + country + "|" + flow;
+    if (resourceSelectionCache[cacheKey]) {
+      return resourceSelectionCache[cacheKey];
+    }
+
+    if (resourceManifest && resourceManifest.selections && resourceManifest.selections[cacheKey]) {
+      resourceSelectionCache[cacheKey] = resourceManifest.selections[cacheKey];
+      return resourceSelectionCache[cacheKey];
+    }
+
+    const relativeCsvPath = year + "/" + country + "/" + flow + "/trade_resource.csv";
+    const text = await fetchTextWithFallback([
+      joinPath(yearBasePath, relativeCsvPath),
+      buildRawYearPath(relativeCsvPath)
+    ]);
+    if (!text) {
+      return null;
+    }
+
+    const built = buildResourceSelectionFromCsvText(text, "year/" + relativeCsvPath);
+    if (built) {
+      resourceSelectionCache[cacheKey] = built;
+    }
+    return built;
+  }
+
+  function loadDataset(countryParam, yearParam, flowParam) {
     const country = countryParam || countrySelect.value;
     const year = yearParam || yearSelect.value;
+    const flow = flowParam || flowSelect.value || manifest.defaultSelection.flow || "domestic";
 
     if (!manifest.countries.includes(country)) {
       updateStatus("Unsupported country " + country + ".", true);
@@ -279,83 +804,66 @@
       return Promise.reject(new Error("Unsupported year"));
     }
 
-    activeSelection = { country: country, year: year };
+    const availableFlows = flowsForSelection(country, year);
+    if (!availableFlows.includes(flow)) {
+      updateStatus("Unsupported flow " + flow + " for " + country + " " + year + ".", true);
+      return Promise.reject(new Error("Unsupported flow"));
+    }
+
+    activeSelection = { country: country, year: year, flow: flow };
 
     countrySelect.value = country;
     updateYearOptions();
     yearSelect.value = year;
+    updateFlowOptions(country, year);
+    flowSelect.value = flow;
 
     if (loadButton) {
       loadButton.disabled = true;
     }
     countrySelect.disabled = true;
     yearSelect.disabled = true;
+    flowSelect.disabled = true;
+    activeResourceSelection = null;
     updateHeroMeta();
-    updateStatus("Loading " + country + " " + year + " domestic impact dataset...", false);
-    window.TRADE_SANKEY_DATA = null;
+    updateStatus("Loading " + country + " " + year + " " + flow + " impact dataset...", false);
+    return loadIndustryNamesForYears([year]).then(async function () {
+      const nextImpactData = await loadImpactSelection(country, year, flow);
+      const nextResourceSelection = await loadResourceSelection(country, year, flow);
 
-    if (activeDatasetScript && activeDatasetScript.parentNode) {
-      activeDatasetScript.parentNode.removeChild(activeDatasetScript);
-    }
+      if (loadButton) {
+        loadButton.disabled = false;
+      }
+      countrySelect.disabled = false;
+      yearSelect.disabled = false;
+      flowSelect.disabled = false;
 
-    const datasetPath = manifest.datasetBasePath + "/" + year + "/" + country + ".js";
+      sankeyData = nextImpactData;
+      activeResourceSelection = nextResourceSelection;
 
-    return loadIndustryNamesForYears([year]).then(function () {
-      return new Promise(function (resolve, reject) {
-        const script = document.createElement("script");
-        script.src = datasetPath;
+      if (!sankeyData || !sankeyData.dataset) {
+        updateHeroMeta();
+        renderAllPanels();
+        updateStatus("No " + flow + " impact dataset file found for " + country + " " + year + ".", true);
+        return;
+      }
 
-        script.onload = function () {
-          if (loadButton) {
-            loadButton.disabled = false;
-          }
-          countrySelect.disabled = false;
-          yearSelect.disabled = false;
-
-          if (!window.TRADE_SANKEY_DATA || !window.TRADE_SANKEY_DATA.dataset) {
-            sankeyData = null;
-            updateHeroMeta();
-            renderAllPanels();
-            updateStatus("Unable to load impact dataset for " + country + " " + year + ".", true);
-            resolve();
-            return;
-          }
-
-          sankeyData = window.TRADE_SANKEY_DATA;
-          panels.forEach(function (panelState) {
-            if (!panelState.select) {
-              return;
-            }
-            const nextIndicator =
-              defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
-              indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
-              indicatorColumns()[0];
-            if (!indicatorColumns().includes(panelState.select.value)) {
-              setIndicatorOptions(panelState.select, nextIndicator);
-            }
-          });
-          updateHeroMeta();
-          renderAllPanels();
-          updateStatus("Loaded " + sankeyData.meta.country + " " + sankeyData.meta.year + " domestic impact dataset.", false);
-          resolve();
-        };
-
-        script.onerror = function () {
-          if (loadButton) {
-            loadButton.disabled = false;
-          }
-          countrySelect.disabled = false;
-          yearSelect.disabled = false;
-          sankeyData = null;
-          updateHeroMeta();
-          renderAllPanels();
-          updateStatus("No domestic impact dataset file found for " + country + " " + year + ".", true);
-          resolve();
-        };
-
-        activeDatasetScript = script;
-        document.head.appendChild(script);
+      panels.forEach(function (panelState) {
+        if (!panelState.select) {
+          return;
+        }
+        const nextIndicator =
+          defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
+          indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
+          indicatorColumns()[0];
+        if (!indicatorColumns().includes(panelState.select.value)) {
+          setIndicatorOptions(panelState.select, nextIndicator);
+        }
       });
+
+      updateHeroMeta();
+      renderAllPanels();
+      updateStatus("Loaded " + sankeyData.meta.country + " " + sankeyData.meta.year + " " + sankeyData.meta.flow + " impact dataset.", false);
     });
   }
 
@@ -420,6 +928,89 @@
 
   function formatExact(value) {
     return exactFormatter.format(Number(value) || 0);
+  }
+
+  function formatPercent(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return "0%";
+    }
+    return (numeric * 100).toFixed(1).replace(/\.0$/, "") + "%";
+  }
+
+  function summarizeTradeLeader(flow, links, total) {
+    if (!Array.isArray(links) || !links.length) {
+      return null;
+    }
+
+    let actorKey = null;
+    let actorLabel = null;
+    if (flow === "imports") {
+      actorKey = "target";
+      actorLabel = "Largest Importer";
+    } else if (flow === "exports") {
+      actorKey = "source";
+      actorLabel = "Largest Exporter";
+    } else {
+      return null;
+    }
+
+    const totalsByActor = {};
+    links.forEach(function (link) {
+      const actorCode = normalizeCode(link[actorKey]);
+      if (!actorCode) {
+        return;
+      }
+      totalsByActor[actorCode] = (totalsByActor[actorCode] || 0) + parseNumber(link.value);
+    });
+
+    const actorCodes = Object.keys(totalsByActor).sort(function (left, right) {
+      return (totalsByActor[right] - totalsByActor[left]) || left.localeCompare(right);
+    });
+    if (!actorCodes.length) {
+      return null;
+    }
+
+    const code = actorCodes[0];
+    const value = totalsByActor[code];
+    return {
+      actorKey: actorKey,
+      actorLabel: actorLabel,
+      code: code,
+      name: resolveIndustryName(code),
+      value: value,
+      share: total > 0 ? value / total : 0
+    };
+  }
+
+  function buildLeaderRows(leader, link) {
+    if (!leader) {
+      return [];
+    }
+
+    const rows = [
+      {
+        label: leader.actorLabel,
+        value: displayIndName(leader.code)
+      },
+      {
+        label: "Leader Total",
+        value: formatCompact(leader.value) + " (" + formatExact(leader.value) + ")"
+      },
+      {
+        label: "Leader Share",
+        value: formatPercent(leader.share) + " of displayed total"
+      }
+    ];
+
+    if (link) {
+      rows.push({
+        label: "This Link Uses Leader",
+        value: normalizeCode(link[leader.actorKey]) === leader.code ? "Yes" : "No"
+      });
+    }
+
+    return rows;
   }
 
   function hashHue(text) {
@@ -989,15 +1580,12 @@
   }
 
   function getResourceSelection() {
-    if (!resourceManifest || !resourceManifest.selections || !activeSelection) {
-      return null;
-    }
-    return resourceManifest.selections[activeSelection.year + "|" + activeSelection.country] || null;
+    return activeResourceSelection;
   }
 
   function renderImpactPanel(panelState) {
     if (!sankeyData || !sankeyData.dataset) {
-      showEmpty(panelState, "Choose a country and year; data loads automatically.");
+      showEmpty(panelState, "Choose a country, flow, and year; data loads automatically.");
       return;
     }
 
@@ -1027,13 +1615,8 @@
       return sum + link.value;
     }, 0);
     const topLink = links[0];
-    const targetCount = new Set(links.map(function (link) {
-      return link.target;
-    })).size;
-    const topSources = indicatorData.top_sources || [];
-    const topSourceNames = topSources.map(resolveIndustryName);
-    const topLinkSourceName = resolveIndustryName(topLink.source);
-    const topLinkTargetName = resolveIndustryName(topLink.target);
+    const leader = summarizeTradeLeader(activeSelection && activeSelection.flow, links, total);
+    const flowDescriptor = activeSelection && activeSelection.flow ? startCase(activeSelection.flow) : "Domestic";
 
     renderSankeyPanel(panelState, {
       title: panelState.config.title + ": " + titleizeLabel(indicator),
@@ -1041,34 +1624,46 @@
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
-        largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")"
+        largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")",
+        leader: leader
+          ? leader.actorLabel + ": " + displayIndName(leader.code) + " (" + formatCompact(leader.value) + ")"
+          : flowDescriptor + " flow"
       },
       buildTitle: function (link) {
-        return [
+        const lines = [
           titleizeLabel(indicator) + ": " + formatExact(link.value),
           "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
           "Trade Amount: " + formatExact(link.amount),
           "Total Impact Value: " + formatExact(link.total_impact_value)
-        ].join("\n");
+        ];
+        if (leader) {
+          lines.push(leader.actorLabel + ": " + displayIndName(leader.code));
+          lines.push("Leader Share: " + formatPercent(leader.share) + " of displayed total");
+        }
+        return lines.join("\n");
       },
       buildHoverRows: function (link) {
         return [
           { label: "Chart", value: panelState.config.title },
           { label: "Indicator", value: titleizeLabel(indicator) },
+          { label: "Selection Flow", value: flowDescriptor },
           { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Value", value: formatExact(link.value) }
-        ];
+        ].concat(buildLeaderRows(leader, link));
       },
       buildClickRows: function (link) {
         return [
           { label: "Chart", value: panelState.config.title },
           { label: "Indicator", value: titleizeLabel(indicator) },
+          { label: "Selection Flow", value: flowDescriptor },
+          { label: "Exporter", value: displayIndName(link.source) },
+          { label: "Importer", value: displayIndName(link.target) },
           { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
           { label: "Amount", value: formatExact(link.amount) },
           { label: "Impact", value: formatExact(link.total_impact_value) }
-        ];
+        ].concat(buildLeaderRows(leader, link));
       }
     });
   }
@@ -1076,7 +1671,7 @@
   function renderResourceFlowPanel(panelState) {
     const resourceSelection = getResourceSelection();
     if (!resourceSelection) {
-      showEmpty(panelState, "No domestic trade_resource.csv dataset for this selection.");
+      showEmpty(panelState, "No trade_resource.csv dataset found for this flow.");
       return;
     }
 
@@ -1099,9 +1694,6 @@
       return sum + link.value;
     }, 0);
     const topLink = links[0];
-    const targetCount = new Set(links.map(function (link) {
-      return link.target;
-    })).size;
 
     renderSankeyPanel(panelState, {
       title: panelState.config.title,
@@ -1143,7 +1735,7 @@
   function renderResourceMixPanel(panelState) {
     const resourceSelection = getResourceSelection();
     if (!resourceSelection) {
-      showEmpty(panelState, "No domestic trade_resource.csv dataset for this selection.");
+      showEmpty(panelState, "No trade_resource.csv dataset found for this flow.");
       return;
     }
 
@@ -1255,12 +1847,59 @@
     }
   }
 
+  function updateFlowOptions(countryParam, yearParam) {
+    const country = countryParam || countrySelect.value;
+    const year = yearParam || yearSelect.value;
+    const flows = flowsForSelection(country, year);
+    const currentFlow = flowSelect.value;
+
+    flowSelect.innerHTML = "";
+    flows.forEach(function (flow) {
+      const option = document.createElement("option");
+      option.value = flow;
+      option.textContent = startCase(flow);
+      flowSelect.appendChild(option);
+    });
+
+    if (flows.includes(currentFlow)) {
+      flowSelect.value = currentFlow;
+    } else if (flows.length) {
+      flowSelect.value = flows[0];
+    }
+  }
+
   function updateHeroMeta() {
-    if (activeSelection && activeSelection.country && activeSelection.year) {
-      selectionPill.textContent = "Selection: " + activeSelection.country + " / " + activeSelection.year;
+    if (activeSelection && activeSelection.country && activeSelection.year && activeSelection.flow) {
+      selectionPill.textContent =
+        "Selection: " +
+        activeSelection.country +
+        " / " +
+        activeSelection.year +
+        " / " +
+        startCase(activeSelection.flow);
     } else {
       selectionPill.textContent = "Selection: --";
     }
+    notifyHostSelection();
+  }
+
+  function syncSelectionFromHash() {
+    const nextSelections = parseHashSelections();
+    if (!nextSelections.length) {
+      return;
+    }
+
+    const next = nextSelections[0];
+    if (
+      activeSelection &&
+      activeSelection.country === next.country &&
+      activeSelection.year === next.year &&
+      activeSelection.flow === next.flow
+    ) {
+      return;
+    }
+
+    loadDataset(next.country, next.year, next.flow);
   }
 
   manifest.countries.forEach(function (country) {
@@ -1276,33 +1915,92 @@
     const first = hashSelections[0];
     countrySelect.value = first.country;
     updateYearOptions();
+    updateFlowOptions(first.country, first.year);
     yearSelect.value = first.year;
-    updateHash(first.country, first.year);
+    flowSelect.value = first.flow;
+    writeSelectionHash(first.country, first.year, first.flow, false);
   } else {
     countrySelect.value = manifest.defaultSelection.country;
     updateYearOptions();
+    updateFlowOptions(manifest.defaultSelection.country, manifest.defaultSelection.year);
     yearSelect.value = manifest.defaultSelection.year;
-    updateHash(manifest.defaultSelection.country, manifest.defaultSelection.year);
+    flowSelect.value = manifest.defaultSelection.flow || "domestic";
+    writeSelectionHash(
+      manifest.defaultSelection.country,
+      manifest.defaultSelection.year,
+      manifest.defaultSelection.flow || "domestic",
+      false
+    );
     hashSelections = [{
       country: manifest.defaultSelection.country,
-      year: manifest.defaultSelection.year
+      year: manifest.defaultSelection.year,
+      flow: manifest.defaultSelection.flow || "domestic"
     }];
   }
 
   countrySelect.addEventListener("change", function () {
     updateYearOptions();
+    updateFlowOptions(countrySelect.value, yearSelect.value);
     const selectedCountry = countrySelect.value;
     const selectedYear = yearSelect.value;
-    updateHash(selectedCountry, selectedYear);
-    loadDataset(selectedCountry, selectedYear);
+    const selectedFlow = flowSelect.value;
+    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false);
+    loadDataset(selectedCountry, selectedYear, selectedFlow);
+  });
+
+  flowSelect.addEventListener("change", function () {
+    const selectedCountry = countrySelect.value;
+    const selectedYear = yearSelect.value;
+    const selectedFlow = flowSelect.value;
+    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false);
+    loadDataset(selectedCountry, selectedYear, selectedFlow);
   });
 
   yearSelect.addEventListener("change", function () {
+    updateFlowOptions(countrySelect.value, yearSelect.value);
     const selectedCountry = countrySelect.value;
     const selectedYear = yearSelect.value;
-    updateHash(selectedCountry, selectedYear);
-    loadDataset(selectedCountry, selectedYear);
+    const selectedFlow = flowSelect.value;
+    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false);
+    loadDataset(selectedCountry, selectedYear, selectedFlow);
   });
+
+  document.addEventListener("hashChangeEvent", syncSelectionFromHash);
+  window.addEventListener("hashchange", syncSelectionFromHash);
+  window.addEventListener("message", function (event) {
+    const data = event.data || {};
+    if (data.type !== "trade-data:set-selection" || !data.detail) {
+      return;
+    }
+
+    const nextCountry = normalizeCode(data.detail.country);
+    const nextYear = normalizeCode(data.detail.year);
+    const nextFlow = normalizeCode(data.detail.flow || manifest.defaultSelection.flow || "domestic");
+    if (!nextCountry || !nextYear || !nextFlow) {
+      return;
+    }
+
+    if (
+      activeSelection &&
+      activeSelection.country === nextCountry &&
+      activeSelection.year === nextYear &&
+      activeSelection.flow === nextFlow
+    ) {
+      return;
+    }
+
+    writeSelectionHash(nextCountry, nextYear, nextFlow, false);
+    loadDataset(nextCountry, nextYear, nextFlow);
+  });
+
+  if (typeof ResizeObserver === "function") {
+    const resizeObserver = new ResizeObserver(function () {
+      notifyHostHeight();
+    });
+    resizeObserver.observe(document.body);
+  } else {
+    window.addEventListener("resize", notifyHostHeight);
+  }
 
   document.addEventListener("click", function (event) {
     if (event.target.closest(".interactive-mark")) {
@@ -1321,13 +2019,14 @@
 
   updateHeroMeta();
   renderAllPanels();
+  notifyHostHeight();
 
   (async function loadHashSelections() {
     const uniqueYears = Array.from(new Set(hashSelections.map(function (h) { return h.year; })));
     await loadIndustryNamesForYears(uniqueYears);
     for (let i = 0; i < hashSelections.length; i += 1) {
       const sel = hashSelections[i];
-      await loadDataset(sel.country, sel.year);
+      await loadDataset(sel.country, sel.year, sel.flow);
     }
   }());
 }());

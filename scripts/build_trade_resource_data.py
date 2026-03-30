@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Aggregate domestic trade_resource.csv files into a browser-readable JS bundle.
+Aggregate trade_resource.csv files into a browser-readable JS bundle.
 
 The dashboard loads this file directly from disk, so the page can still be
 opened without running a local server.
@@ -16,6 +16,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "trade-resource-data.js"
+SUPPORTED_FLOWS = ("domestic", "imports", "exports")
 EXCLUDED_SOURCES = {"WHOLE", "CONST"}
 SOURCE_LIMIT = 5
 BASE_COLUMNS = {
@@ -193,17 +194,18 @@ def build_dataset(csv_path: Path) -> dict:
 
 def discover_selections() -> dict:
     selections: dict[str, dict] = {}
-    for csv_path in sorted(ROOT.glob("year/*/*/domestic/trade_resource.csv")):
-        year = csv_path.parts[-4]
-        country = csv_path.parts[-3]
-        selections[f"{year}|{country}"] = build_dataset(csv_path)
+    for flow in SUPPORTED_FLOWS:
+        for csv_path in sorted(ROOT.glob(f"year/*/*/{flow}/trade_resource.csv")):
+            year = csv_path.parts[-4]
+            country = csv_path.parts[-3]
+            selections[f"{year}|{country}|{flow}"] = build_dataset(csv_path)
     return selections
 
 
 def main() -> None:
     payload = {
         "meta": {
-            "flow": "domestic",
+            "flows": list(SUPPORTED_FLOWS),
             "excludedSources": sorted(EXCLUDED_SOURCES),
             "sourceLimit": SOURCE_LIMIT,
         },
