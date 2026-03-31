@@ -211,7 +211,7 @@
     if (configured) {
       return joinPath(configured, relativePath);
     }
-    return "https://raw.githubusercontent.com/ModelEarth/trade-data/main/year/" + relativePath;
+    return "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + relativePath;
   }
 
   async function fetchTextWithFallback(paths) {
