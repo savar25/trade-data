@@ -5,6 +5,8 @@
   const countrySelect = document.getElementById("country-select");
   const flowSelect = document.getElementById("flow-select");
   const yearSelect = document.getElementById("year-select");
+  const topnSlider = document.getElementById("topn-slider");
+  const topnLabel = document.getElementById("topn-label");
   const loadButton = document.getElementById("load-button");
   const statusText = document.getElementById("status-text");
   const selectionPill = document.getElementById("selection-pill");
@@ -165,6 +167,8 @@
     runtimeConfig.datasetBasePath ||
     (manifest && manifest.datasetBasePath ? manifest.datasetBasePath : "./sankey-datasets")
   );
+  const dynamicTopNEnabled = Boolean(topnSlider);
+  const defaultTopN = normalizeTopN(runtimeConfig.defaultTopN || manifest.sourceLimit || 5);
 
   function normalizeCode(code) {
     return String(code || "").trim();
@@ -173,6 +177,33 @@
   function parseNumber(value) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function normalizeTopN(value) {
+    const parsed = parseInt(value, 10);
+    if (!Number.isFinite(parsed)) {
+      return 5;
+    }
+    return Math.max(5, Math.min(50, parsed));
+  }
+
+  function currentTopN() {
+    return normalizeTopN(
+      activeSelection && activeSelection.topn
+        ? activeSelection.topn
+        : (topnSlider ? topnSlider.value : defaultTopN)
+    );
+  }
+
+  function syncTopNControl(value) {
+    if (!topnSlider) {
+      return;
+    }
+    const normalized = normalizeTopN(value);
+    topnSlider.value = String(normalized);
+    if (topnLabel) {
+      topnLabel.textContent = String(normalized);
+    }
   }
 
   function buildRawYearPath(relativePath) {
@@ -320,12 +351,14 @@
     return {
       country: params.get("country") || "",
       year: params.get("year") || "",
-      flow: params.get("flow") || ""
+      flow: params.get("flow") || "",
+      topn: params.get("topn") || ""
     };
   }
 
   function parseHashSelections() {
     const hashState = readHashState();
+    const topn = normalizeTopN(hashState.topn || defaultTopN);
     const countries = (hashState.country || manifest.defaultSelection.country)
       .split(",")
       .map(normalizeCode)
@@ -352,11 +385,11 @@
         const availableFlows = flowsForSelection(country, year);
         flows.forEach(function (flow) {
           if (availableFlows.includes(flow)) {
-            selections.push({ country: country, year: year, flow: flow });
+            selections.push({ country: country, year: year, flow: flow, topn: topn });
           }
         });
         if (!flows.length && availableFlows.length) {
-          selections.push({ country: country, year: year, flow: availableFlows[0] });
+          selections.push({ country: country, year: year, flow: availableFlows[0], topn: topn });
         }
       });
     });
@@ -365,21 +398,24 @@
       selections.push({
         country: manifest.defaultSelection.country,
         year: manifest.defaultSelection.year,
-        flow: manifest.defaultSelection.flow || "domestic"
+        flow: manifest.defaultSelection.flow || "domestic",
+        topn: topn
       });
     }
 
     return selections;
   }
 
-  function writeSelectionHash(co, yr, fl, notify) {
+  function writeSelectionHash(co, yr, fl, notify, topnParam) {
     const normalizedCountry = normalizeCode(co || countrySelect.value);
     const normalizedYear = normalizeCode(yr || yearSelect.value);
     const normalizedFlow = normalizeCode(fl || flowSelect.value || manifest.defaultSelection.flow || "domestic");
+    const normalizedTopN = normalizeTopN(topnParam || (topnSlider ? topnSlider.value : defaultTopN));
     const nextState = {
       country: normalizedCountry,
       year: normalizedYear,
-      flow: normalizedFlow
+      flow: normalizedFlow,
+      topn: String(normalizedTopN)
     };
 
     if (
@@ -398,7 +434,8 @@
     const nextHash =
       "country=" + encodeURIComponent(normalizedCountry) +
       "&year=" + encodeURIComponent(normalizedYear) +
-      "&flow=" + encodeURIComponent(normalizedFlow);
+      "&flow=" + encodeURIComponent(normalizedFlow) +
+      "&topn=" + encodeURIComponent(normalizedTopN);
     if (notify) {
       if (window.location.hash.replace(/^#/, "") !== nextHash) {
         window.location.hash = nextHash;
@@ -536,26 +573,15 @@
     const dataset = {};
     indicatorColumns.forEach(function (indicator) {
       const state = states[indicator];
-      const topSources = Object.keys(state.sourceTotals)
+      const rankedSources = Object.keys(state.sourceTotals)
         .sort(function (left, right) {
           return (state.sourceTotals[right] - state.sourceTotals[left]) || left.localeCompare(right);
-        })
-        .slice(0, manifest.sourceLimit || 5);
-      const links = topSources
-        .map(function (source) {
-          return state.bestLinks[source];
-        })
-        .filter(Boolean)
-        .sort(function (left, right) {
-          return (right.value - left.value) || left.source.localeCompare(right.source) || left.target.localeCompare(right.target);
         });
 
       dataset[indicator] = {
-        display_total: topSources.reduce(function (sum, source) {
-          return sum + (state.sourceTotals[source] || 0);
-        }, 0),
-        top_sources: topSources,
-        links: links
+        source_totals: state.sourceTotals,
+        links_by_source: state.bestLinks,
+        ranked_sources: rankedSources
       };
     });
 
@@ -569,7 +595,7 @@
         country: country,
         flow: flow,
         excluded_sources: manifest.excludedSources || [],
-        source_limit: manifest.sourceLimit || 5,
+        source_limit: defaultTopN,
         source_csv: sourcePath
       },
       indicatorColumns: indicatorColumns,
@@ -643,11 +669,10 @@
       });
     }
 
-    const topSources = Object.keys(sourceTotals)
+    const rankedSources = Object.keys(sourceTotals)
       .sort(function (left, right) {
         return (sourceTotals[right] - sourceTotals[left]) || left.localeCompare(right);
-      })
-      .slice(0, manifest.sourceLimit || 5);
+      });
 
     const summaryMix = Object.keys(summaryCategoryRules).map(function (label) {
       const columns = summaryCategoryRules[label].filter(function (column) {
@@ -670,18 +695,9 @@
     return {
       source_csv: sourcePath,
       eligible_rows: eligibleRows,
-      top_sources: topSources,
-      top_source_total: topSources.reduce(function (sum, source) {
-        return sum + (sourceTotals[source] || 0);
-      }, 0),
-      flow_links: topSources
-        .map(function (source) {
-          return bestLinks[source];
-        })
-        .filter(Boolean)
-        .sort(function (left, right) {
-          return (right.value - left.value) || left.source.localeCompare(right.source) || left.target.localeCompare(right.target);
-        }),
+      source_totals: sourceTotals,
+      links_by_source: bestLinks,
+      ranked_sources: rankedSources,
       factor_mix: Object.keys(factorTotals).map(function (factor) {
         return {
           name: factor,
@@ -730,18 +746,20 @@
       return impactDataCache[cacheKey];
     }
 
-    const scriptPaths = [
-      joinPath(datasetBasePath, year + "/" + country + "/" + flow + ".js")
-    ];
-    if (flow === "domestic") {
-      scriptPaths.push(joinPath(datasetBasePath, year + "/" + country + ".js"));
-    }
+    if (!dynamicTopNEnabled) {
+      const scriptPaths = [
+        joinPath(datasetBasePath, year + "/" + country + "/" + flow + ".js")
+      ];
+      if (flow === "domestic") {
+        scriptPaths.push(joinPath(datasetBasePath, year + "/" + country + ".js"));
+      }
 
-    for (let index = 0; index < scriptPaths.length; index += 1) {
-      const scripted = await loadDatasetScript(scriptPaths[index]);
-      if (scripted) {
-        impactDataCache[cacheKey] = scripted;
-        return scripted;
+      for (let index = 0; index < scriptPaths.length; index += 1) {
+        const scripted = await loadDatasetScript(scriptPaths[index]);
+        if (scripted) {
+          impactDataCache[cacheKey] = scripted;
+          return scripted;
+        }
       }
     }
 
@@ -767,7 +785,7 @@
       return resourceSelectionCache[cacheKey];
     }
 
-    if (resourceManifest && resourceManifest.selections && resourceManifest.selections[cacheKey]) {
+    if (!dynamicTopNEnabled && resourceManifest && resourceManifest.selections && resourceManifest.selections[cacheKey]) {
       resourceSelectionCache[cacheKey] = resourceManifest.selections[cacheKey];
       return resourceSelectionCache[cacheKey];
     }
@@ -788,10 +806,11 @@
     return built;
   }
 
-  function loadDataset(countryParam, yearParam, flowParam) {
+  function loadDataset(countryParam, yearParam, flowParam, topnParam) {
     const country = countryParam || countrySelect.value;
     const year = yearParam || yearSelect.value;
     const flow = flowParam || flowSelect.value || manifest.defaultSelection.flow || "domestic";
+    const topn = normalizeTopN(topnParam || (topnSlider ? topnSlider.value : defaultTopN));
 
     if (!manifest.countries.includes(country)) {
       updateStatus("Unsupported country " + country + ".", true);
@@ -810,13 +829,14 @@
       return Promise.reject(new Error("Unsupported flow"));
     }
 
-    activeSelection = { country: country, year: year, flow: flow };
+    activeSelection = { country: country, year: year, flow: flow, topn: topn };
 
     countrySelect.value = country;
     updateYearOptions();
     yearSelect.value = year;
     updateFlowOptions(country, year);
     flowSelect.value = flow;
+    syncTopNControl(topn);
 
     if (loadButton) {
       loadButton.disabled = true;
@@ -824,6 +844,9 @@
     countrySelect.disabled = true;
     yearSelect.disabled = true;
     flowSelect.disabled = true;
+    if (topnSlider) {
+      topnSlider.disabled = true;
+    }
     activeResourceSelection = null;
     updateHeroMeta();
     updateStatus("Loading " + country + " " + year + " " + flow + " impact dataset...", false);
@@ -837,6 +860,9 @@
       countrySelect.disabled = false;
       yearSelect.disabled = false;
       flowSelect.disabled = false;
+      if (topnSlider) {
+        topnSlider.disabled = false;
+      }
 
       sankeyData = nextImpactData;
       activeResourceSelection = nextResourceSelection;
@@ -1235,6 +1261,46 @@
     panelState.svg.appendChild(empty);
   }
 
+  function distributeNodes(nodes, startY, endY, gap, minHeight) {
+    const available = Math.max(endY - startY, 1);
+    const desiredHeight = nodes.reduce(function (sum, node) {
+      return sum + Math.max(node.height, minHeight);
+    }, 0);
+    const desiredGap = gap * Math.max(nodes.length - 1, 0);
+    const compression = desiredHeight + desiredGap > available
+      ? available / Math.max(desiredHeight + desiredGap, 1)
+      : 1;
+    const appliedGap = gap * compression;
+
+    let cursor = startY;
+    nodes.forEach(function (node) {
+      node.height = Math.max(2, Math.max(node.height, minHeight) * compression);
+      node.y = cursor;
+      cursor += node.height + appliedGap;
+    });
+  }
+
+  function assignLabelCenters(nodes, startY, endY, minGap) {
+    if (!nodes.length) {
+      return;
+    }
+
+    const maxCenter = endY;
+    let previousCenter = startY - minGap;
+    nodes.forEach(function (node) {
+      const desired = node.y + node.height / 2;
+      node.labelCenter = Math.max(desired, previousCenter + minGap);
+      previousCenter = node.labelCenter;
+    });
+
+    let nextCenter = maxCenter;
+    for (let index = nodes.length - 1; index >= 0; index -= 1) {
+      const node = nodes[index];
+      node.labelCenter = Math.min(node.labelCenter, nextCenter);
+      nextCenter = node.labelCenter - minGap;
+    }
+  }
+
   function buildLayout(links) {
     const sourceTotals = new Map();
     const targetTotals = new Map();
@@ -1253,10 +1319,12 @@
     const nodeWidth = 18;
     const leftX = 120;
     const rightX = width - 120 - nodeWidth;
-    const padSource = Math.max(8, Math.min(18, 220 / Math.max(sourceTotals.size, 1)));
-    const padTarget = Math.max(8, Math.min(18, 220 / Math.max(targetTotals.size, 1)));
-    const innerHeightSources = height - top - bottom - padSource * Math.max(sourceTotals.size - 1, 0);
-    const innerHeightTargets = height - top - bottom - padTarget * Math.max(targetTotals.size - 1, 0);
+    const laneTop = top + 8;
+    const laneBottom = height - bottom - 8;
+    const padSource = Math.max(10, Math.min(22, 230 / Math.max(sourceTotals.size, 1)));
+    const padTarget = Math.max(10, Math.min(22, 230 / Math.max(targetTotals.size, 1)));
+    const innerHeightSources = laneBottom - laneTop - padSource * Math.max(sourceTotals.size - 1, 0);
+    const innerHeightTargets = laneBottom - laneTop - padTarget * Math.max(targetTotals.size - 1, 0);
     const scale = Math.min(
       innerHeightSources / Math.max(totalValue, 1),
       innerHeightTargets / Math.max(totalValue, 1)
@@ -1288,21 +1356,19 @@
         return right.total - left.total || left.label.localeCompare(right.label);
       });
 
-    let sourceY = top;
     sourceNodes.forEach(function (node) {
       node.x = leftX;
-      node.y = sourceY;
       node.height = node.total * scale;
-      sourceY += node.height + padSource;
     });
+    distributeNodes(sourceNodes, laneTop, laneBottom, padSource, 8);
+    assignLabelCenters(sourceNodes, laneTop + 16, laneBottom - 16, 26);
 
-    let targetY = top;
     targetNodes.forEach(function (node) {
       node.x = rightX;
-      node.y = targetY;
       node.height = node.total * scale;
-      targetY += node.height + padTarget;
     });
+    distributeNodes(targetNodes, laneTop, laneBottom, padTarget, 8);
+    assignLabelCenters(targetNodes, laneTop + 16, laneBottom - 16, 26);
 
     const sourceMap = new Map(sourceNodes.map(function (node) {
       return [node.code, node];
@@ -1402,8 +1468,8 @@
 
       const lines = wrapTextLines(node.label, 18);
       const lineHeight = 14;
-      const top = node.y + node.height / 2 - ((lines.length - 1) * lineHeight) / 2;
-      label.setAttribute("y", top);
+      const labelTop = node.labelCenter - ((lines.length - 1) * lineHeight) / 2;
+      label.setAttribute("y", labelTop);
 
       lines.forEach(function (line, index) {
         const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
@@ -1422,7 +1488,7 @@
       const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
       value.setAttribute("class", "node-value");
       value.setAttribute("x", node.x - 10);
-      value.setAttribute("y", node.y + node.height / 2 + 12);
+      value.setAttribute("y", node.labelCenter + 12);
       value.setAttribute("text-anchor", "end");
       value.textContent = formatCompact(node.total);
       group.appendChild(value);
@@ -1452,8 +1518,8 @@
 
       const lines = wrapTextLines(node.label, 18);
       const lineHeight = 14;
-      const top = node.y + node.height / 2 - ((lines.length - 1) * lineHeight) / 2;
-      label.setAttribute("y", top);
+      const labelTop = node.labelCenter - ((lines.length - 1) * lineHeight) / 2;
+      label.setAttribute("y", labelTop);
 
       lines.forEach(function (line, index) {
         const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
@@ -1472,7 +1538,7 @@
       const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
       value.setAttribute("class", "node-value");
       value.setAttribute("x", node.x + layout.nodeWidth + 10);
-      value.setAttribute("y", node.y + node.height / 2 + 9);
+      value.setAttribute("y", node.labelCenter + 9);
       value.setAttribute("text-anchor", "start");
       value.textContent = formatCompact(node.total);
       group.appendChild(value);
@@ -1595,7 +1661,15 @@
       indicatorColumns()[0];
     const indicator = panelState.select && panelState.select.value ? panelState.select.value : fallbackIndicator;
     const indicatorData = sankeyData.dataset[indicator];
-    const links = indicatorData && indicatorData.links ? indicatorData.links.map(function (link) {
+    const rankedSources = indicatorData && indicatorData.ranked_sources ? indicatorData.ranked_sources.slice(0, currentTopN()) : [];
+    const rawLinks = rankedSources.length
+      ? rankedSources.map(function (source) {
+        return indicatorData.links_by_source[source];
+      }).filter(Boolean).sort(function (left, right) {
+        return (right.value - left.value) || left.source.localeCompare(right.source) || left.target.localeCompare(right.target);
+      })
+      : ((indicatorData && indicatorData.links ? indicatorData.links.slice(0, currentTopN()) : []));
+    const links = rawLinks.map(function (link) {
       return {
         trade_id: Number(link.trade_id),
         source: link.source,
@@ -1604,16 +1678,20 @@
         amount: Number(link.amount),
         total_impact_value: Number(link.total_impact_value)
       };
-    }) : [];
+    });
 
     if (!links.length) {
       showEmpty(panelState, "No eligible rows for this indicator.");
       return;
     }
 
-    const total = links.reduce(function (sum, link) {
-      return sum + link.value;
-    }, 0);
+    const total = rankedSources.length
+      ? rankedSources.reduce(function (sum, source) {
+        return sum + (indicatorData.source_totals[source] || 0);
+      }, 0)
+      : links.reduce(function (sum, link) {
+        return sum + link.value;
+      }, 0);
     const topLink = links[0];
     const leader = summarizeTradeLeader(activeSelection && activeSelection.flow, links, total);
     const flowDescriptor = activeSelection && activeSelection.flow ? startCase(activeSelection.flow) : "Domestic";
@@ -1675,7 +1753,15 @@
       return;
     }
 
-    const links = (resourceSelection.flow_links || []).map(function (link) {
+    const rankedSources = (resourceSelection.ranked_sources || []).slice(0, currentTopN());
+    const rawLinks = rankedSources.length
+      ? rankedSources.map(function (source) {
+        return resourceSelection.links_by_source[source];
+      }).filter(Boolean).sort(function (left, right) {
+        return (right.value - left.value) || left.source.localeCompare(right.source) || left.target.localeCompare(right.target);
+      })
+      : ((resourceSelection.flow_links || []).slice(0, currentTopN()));
+    const links = rawLinks.map(function (link) {
       return {
         trade_id: Number(link.trade_id),
         source: link.source,
@@ -1690,9 +1776,13 @@
       return;
     }
 
-    const total = links.reduce(function (sum, link) {
-      return sum + link.value;
-    }, 0);
+    const total = rankedSources.length
+      ? rankedSources.reduce(function (sum, source) {
+        return sum + (resourceSelection.source_totals[source] || 0);
+      }, 0)
+      : links.reduce(function (sum, link) {
+        return sum + link.value;
+      }, 0);
     const topLink = links[0];
 
     renderSankeyPanel(panelState, {
@@ -1739,12 +1829,13 @@
       return;
     }
 
-    const items = (resourceSelection.summary_mix || []).slice(0, 5).map(function (item) {
+    const items = (resourceSelection.summary_mix || []).slice(0, 5).map(function (item, index) {
       return {
         name: item.name,
         value: Number(item.value),
         sourceFactor: item.source_factor,
-        spotlight: item.spotlight || null
+        spotlight: item.spotlight || null,
+        rank: index + 1
       };
     });
 
@@ -1753,6 +1844,9 @@
       return;
     }
 
+    const mixTotal = items.reduce(function (sum, item) {
+      return sum + item.value;
+    }, 0);
     const dominant = items[0];
     const spotlight = dominant.spotlight;
     const spotlightText = spotlight
@@ -1771,25 +1865,38 @@
         largest: spotlightText
       },
       buildHoverRows: function (item) {
-        return [
+        const rows = [
           { label: "Chart", value: "Resource Mix" },
+          { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+          { label: "Rank", value: String(item.rank) + " of " + String(items.length) },
           { label: "Bucket", value: item.name },
           { label: "Factor", value: titleizeLabel(item.sourceFactor) },
-          { label: "Total", value: formatExact(item.value) }
+          { label: "Total", value: formatExact(item.value) },
+          { label: "Share", value: formatPercent(mixTotal ? item.value / mixTotal : 0) }
         ];
+        if (item.spotlight) {
+          rows.push({ label: "Spotlight", value: flowLabel(item.spotlight.source, item.spotlight.target) });
+          rows.push({ label: "Trade ID", value: String(item.spotlight.trade_id) });
+        }
+        return rows;
       },
       buildClickRows: function (item) {
         const rows = [
           { label: "Chart", value: "Resource Mix" },
+          { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+          { label: "Source CSV", value: resourceSelection.source_csv || "trade_resource.csv" },
+          { label: "Rank", value: String(item.rank) + " of " + String(items.length) },
           { label: "Bucket", value: item.name },
           { label: "Factor", value: titleizeLabel(item.sourceFactor) },
-          { label: "Total", value: formatExact(item.value) }
+          { label: "Total", value: formatExact(item.value) },
+          { label: "Share", value: formatPercent(mixTotal ? item.value / mixTotal : 0) }
         ];
 
         if (item.spotlight) {
           rows.push({ label: "Flow", value: flowLabel(item.spotlight.source, item.spotlight.target) });
           rows.push({ label: "Trade ID", value: String(item.spotlight.trade_id) });
           rows.push({ label: "Amount", value: formatExact(item.spotlight.amount) });
+          rows.push({ label: "Spotlight Value", value: formatExact(item.spotlight.value) });
         }
 
         return rows;
@@ -1876,7 +1983,9 @@
         " / " +
         activeSelection.year +
         " / " +
-        startCase(activeSelection.flow);
+        startCase(activeSelection.flow) +
+        " / Top " +
+        currentTopN();
     } else {
       selectionPill.textContent = "Selection: --";
     }
@@ -1894,12 +2003,13 @@
       activeSelection &&
       activeSelection.country === next.country &&
       activeSelection.year === next.year &&
-      activeSelection.flow === next.flow
+      activeSelection.flow === next.flow &&
+      currentTopN() === normalizeTopN(next.topn)
     ) {
       return;
     }
 
-    loadDataset(next.country, next.year, next.flow);
+    loadDataset(next.country, next.year, next.flow, next.topn);
   }
 
   manifest.countries.forEach(function (country) {
@@ -1918,23 +2028,27 @@
     updateFlowOptions(first.country, first.year);
     yearSelect.value = first.year;
     flowSelect.value = first.flow;
-    writeSelectionHash(first.country, first.year, first.flow, false);
+    syncTopNControl(first.topn);
+    writeSelectionHash(first.country, first.year, first.flow, false, first.topn);
   } else {
     countrySelect.value = manifest.defaultSelection.country;
     updateYearOptions();
     updateFlowOptions(manifest.defaultSelection.country, manifest.defaultSelection.year);
     yearSelect.value = manifest.defaultSelection.year;
     flowSelect.value = manifest.defaultSelection.flow || "domestic";
+    syncTopNControl(defaultTopN);
     writeSelectionHash(
       manifest.defaultSelection.country,
       manifest.defaultSelection.year,
       manifest.defaultSelection.flow || "domestic",
-      false
+      false,
+      defaultTopN
     );
     hashSelections = [{
       country: manifest.defaultSelection.country,
       year: manifest.defaultSelection.year,
-      flow: manifest.defaultSelection.flow || "domestic"
+      flow: manifest.defaultSelection.flow || "domestic",
+      topn: defaultTopN
     }];
   }
 
@@ -1944,16 +2058,18 @@
     const selectedCountry = countrySelect.value;
     const selectedYear = yearSelect.value;
     const selectedFlow = flowSelect.value;
-    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false);
-    loadDataset(selectedCountry, selectedYear, selectedFlow);
+    const selectedTopN = currentTopN();
+    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false, selectedTopN);
+    loadDataset(selectedCountry, selectedYear, selectedFlow, selectedTopN);
   });
 
   flowSelect.addEventListener("change", function () {
     const selectedCountry = countrySelect.value;
     const selectedYear = yearSelect.value;
     const selectedFlow = flowSelect.value;
-    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false);
-    loadDataset(selectedCountry, selectedYear, selectedFlow);
+    const selectedTopN = currentTopN();
+    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false, selectedTopN);
+    loadDataset(selectedCountry, selectedYear, selectedFlow, selectedTopN);
   });
 
   yearSelect.addEventListener("change", function () {
@@ -1961,9 +2077,26 @@
     const selectedCountry = countrySelect.value;
     const selectedYear = yearSelect.value;
     const selectedFlow = flowSelect.value;
-    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false);
-    loadDataset(selectedCountry, selectedYear, selectedFlow);
+    const selectedTopN = currentTopN();
+    writeSelectionHash(selectedCountry, selectedYear, selectedFlow, false, selectedTopN);
+    loadDataset(selectedCountry, selectedYear, selectedFlow, selectedTopN);
   });
+
+  if (topnSlider) {
+    topnSlider.addEventListener("input", function () {
+      const selectedTopN = normalizeTopN(topnSlider.value);
+      syncTopNControl(selectedTopN);
+      activeSelection.topn = selectedTopN;
+      writeSelectionHash(countrySelect.value, yearSelect.value, flowSelect.value, false, selectedTopN);
+      updateHeroMeta();
+      renderAllPanels();
+      updateStatus(
+        "Showing top " + selectedTopN + " flows for " +
+        activeSelection.country + " " + activeSelection.year + " " + activeSelection.flow + ".",
+        false
+      );
+    });
+  }
 
   document.addEventListener("hashChangeEvent", syncSelectionFromHash);
   window.addEventListener("hashchange", syncSelectionFromHash);
@@ -1989,8 +2122,8 @@
       return;
     }
 
-    writeSelectionHash(nextCountry, nextYear, nextFlow, false);
-    loadDataset(nextCountry, nextYear, nextFlow);
+    writeSelectionHash(nextCountry, nextYear, nextFlow, false, currentTopN());
+    loadDataset(nextCountry, nextYear, nextFlow, currentTopN());
   });
 
   if (typeof ResizeObserver === "function") {
@@ -2026,7 +2159,7 @@
     await loadIndustryNamesForYears(uniqueYears);
     for (let i = 0; i < hashSelections.length; i += 1) {
       const sel = hashSelections[i];
-      await loadDataset(sel.country, sel.year, sel.flow);
+      await loadDataset(sel.country, sel.year, sel.flow, sel.topn);
     }
   }());
 }());
