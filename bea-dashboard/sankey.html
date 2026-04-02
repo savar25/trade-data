@@ -8,6 +8,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <style>
+  .content.contentpadding {
+    width: min(100%, calc(100vw - 32px));
+    max-width: none !important;
+    margin: 0 auto;
+  }
   .sankey-page-header {
     margin: 1em 0 0.25em;
   }
@@ -63,7 +68,7 @@
   }
   #sankey-chart {
     width: 100%;
-    height: 640px;
+    height: 720px;
     border: 1px solid #e8eaed;
     border-radius: 4px;
     background: #fff;
@@ -143,6 +148,7 @@
     <a href="https://exiobase.eu" target="_blank" rel="noopener">EXIOBASE 3</a>
     (multi-regional input-output database, 44 countries, 163 sectors) &middot;
     <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
+    &middot; labels from <code>year/[year]/industry.csv</code>
     &middot; repo CSV: <code id="csv-path-label">year/.../trade_impact.csv</code>
   </div>
 
@@ -267,6 +273,7 @@ const csvPathLabel = document.getElementById("csv-path-label");
 const chartDom = document.getElementById("sankey-chart");
 const chart = echarts.init(chartDom);
 const csvCache = {};
+const industryNameByYear = {};
 
 let rawData = null;
 let activeSelection = null;
@@ -284,7 +291,66 @@ function parseNumber(value) {
 }
 
 function sectorLabel(code) {
-  return SECTOR_NAMES[code] || code;
+  const key = normalizeCode(code);
+  const yearMap = activeSelection && activeSelection.year
+    ? industryNameByYear[normalizeCode(activeSelection.year)]
+    : null;
+  return (yearMap && yearMap[key]) || SECTOR_NAMES[key] || key;
+}
+
+function displayIndustryName(code) {
+  const key = normalizeCode(code);
+  const label = sectorLabel(key);
+  return label !== key ? label + " (" + key + ")" : key;
+}
+
+function wrapLabel(text, maxChars) {
+  const words = String(text || "").split(/\s+/).filter(Boolean);
+  if (!words.length) {
+    return "";
+  }
+  const lines = [];
+  let current = "";
+  words.forEach(function (word) {
+    if (!current) {
+      current = word;
+    } else if (current.length + 1 + word.length <= maxChars) {
+      current += " " + word;
+    } else {
+      lines.push(current);
+      current = word;
+    }
+  });
+  if (current) {
+    lines.push(current);
+  }
+  return lines.join("\n");
+}
+
+async function loadIndustryNamesForYear(year) {
+  const key = normalizeCode(year);
+  if (!key || industryNameByYear[key]) {
+    return;
+  }
+
+  const response = await fetchTextWithFallback([
+    "../year/" + key + "/industry.csv",
+    "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + key + "/industry.csv"
+  ]);
+  if (!response || !response.text) {
+    return;
+  }
+
+  const rows = d3.csvParse(response.text);
+  const yearMap = {};
+  rows.forEach(function (row) {
+    const industryId = normalizeCode(row.industry_id);
+    const name = String(row.name || "").trim();
+    if (industryId) {
+      yearMap[industryId] = name || industryId;
+    }
+  });
+  industryNameByYear[key] = yearMap;
 }
 
 function fmtValue(val, metricKey) {
@@ -465,9 +531,9 @@ function buildSankeyData(metricKey, topN) {
     .map(([key, value]) => {
       const sep = key.indexOf("\x00");
       return {
-        source: sectorLabel(key.slice(0, sep)),
-        target: sectorLabel(key.slice(sep + 1)),
-        value
+        source: normalizeCode(key.slice(0, sep)),
+        target: normalizeCode(key.slice(sep + 1)),
+        value: value
       };
     });
 
@@ -563,13 +629,13 @@ function render() {
       formatter: function(params) {
         if (params.dataType === "edge") {
           return (
-            "<b>" + params.data.source + "</b>" +
+            "<b>" + displayIndustryName(params.data.source) + "</b>" +
             " &rarr; " +
-            "<b>" + params.data.target + "</b><br/>" +
+            "<b>" + displayIndustryName(params.data.target) + "</b><br/>" +
             metric.label + ": <b>" + fmtValue(params.data.value, activeSelection.metric) + "</b>"
           );
         }
-        return "<b>" + params.name + "</b>";
+        return "<b>" + displayIndustryName(params.name) + "</b>";
       }
     },
     series: [{
@@ -582,18 +648,22 @@ function render() {
       nodeAlign: "left",
       nodeGap: 14,
       nodeWidth: 22,
-      left: "1%",
-      right: "22%",
-      top: "2%",
-      bottom: "4%",
+      left: "2%",
+      right: "14%",
+      top: "3%",
+      bottom: "3%",
       data: nodes,
       links: links,
       label: {
         position: "right",
         fontSize: 12,
+        width: 150,
+        overflow: "break",
+        lineHeight: 14,
+        align: "left",
         color: "#333",
         formatter: function(params) {
-          return params.name;
+          return wrapLabel(sectorLabel(params.name), 24);
         }
       },
       lineStyle: {
@@ -607,6 +677,7 @@ function render() {
       }
     }]
   }, true);
+  chart.resize();
 
   setStatus(
     "Showing top\u00A0" + links.length +
@@ -631,6 +702,7 @@ async function loadSelection(selection) {
   const localPath = localCSVPath(selection);
   const rawPath = rawCSVPath(selection);
   csvPathLabel.textContent = "year/" + selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv";
+  await loadIndustryNamesForYear(selection.year);
   setStatus("Loading data…", false);
 
   if (!csvCache[cacheKey]) {

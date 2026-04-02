@@ -247,22 +247,14 @@
     return flows && flows.length ? flows.slice() : supportedFlows();
   }
 
-  function truncateIndustryName(name) {
-    const words = name.split(/\s+/);
-    const result = [];
-    for (let word of words) {
-      if (word.toLowerCase() === 'service') break;
-      result.push(word);
-      if (result.length >= 1) break;
-    }
-    return result.join(' ');
-  }
-
   function resolveIndustryName(code) {
     const key = normalizeCode(code);
-    const fullName = industryNameByCode[key];
+    const yearMap = activeSelection && activeSelection.year
+      ? industryNameByYear[normalizeCode(activeSelection.year)]
+      : null;
+    const fullName = (yearMap && yearMap[key]) || industryNameByCode[key];
     if (fullName && fullName !== key) {
-      return truncateIndustryName(fullName);
+      return fullName;
     }
     return key;
   }
@@ -1317,8 +1309,8 @@
     const top = 24;
     const bottom = 24;
     const nodeWidth = 18;
-    const leftX = 120;
-    const rightX = width - 120 - nodeWidth;
+    const leftX = 190;
+    const rightX = width - 190 - nodeWidth;
     const laneTop = top + 8;
     const laneBottom = height - bottom - 8;
     const padSource = Math.max(10, Math.min(22, 230 / Math.max(sourceTotals.size, 1)));
@@ -1466,7 +1458,7 @@
       label.setAttribute("x", node.x - 10);
       label.setAttribute("text-anchor", "end");
 
-      const lines = wrapTextLines(node.label, 18);
+      const lines = wrapTextLines(node.label, 24);
       const lineHeight = 14;
       const labelTop = node.labelCenter - ((lines.length - 1) * lineHeight) / 2;
       label.setAttribute("y", labelTop);
@@ -1516,7 +1508,7 @@
       label.setAttribute("x", node.x + layout.nodeWidth + 10);
       label.setAttribute("text-anchor", "start");
 
-      const lines = wrapTextLines(node.label, 18);
+      const lines = wrapTextLines(node.label, 24);
       const lineHeight = 14;
       const labelTop = node.labelCenter - ((lines.length - 1) * lineHeight) / 2;
       label.setAttribute("y", labelTop);
@@ -1702,7 +1694,7 @@
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
-        largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")",
+        largest: flowLabel(topLink.source, topLink.target) + " (" + formatCompact(topLink.value) + ")",
         leader: leader
           ? leader.actorLabel + ": " + displayIndName(leader.code) + " (" + formatCompact(leader.value) + ")"
           : flowDescriptor + " flow"
@@ -1791,7 +1783,7 @@
       links: links,
       stats: {
         total: formatCompact(total) + " (" + formatExact(total) + ")",
-        largest: topLink.source + " -> " + topLink.target + " (" + formatCompact(topLink.value) + ")"
+        largest: flowLabel(topLink.source, topLink.target) + " (" + formatCompact(topLink.value) + ")"
       },
       buildTitle: function (link) {
         return [
@@ -1850,7 +1842,7 @@
     const dominant = items[0];
     const spotlight = dominant.spotlight;
     const spotlightText = spotlight
-      ? spotlight.source + " -> " + spotlight.target
+      ? flowLabel(spotlight.source, spotlight.target)
       : "No spotlight flow";
 
     renderBarPanel(panelState, {
