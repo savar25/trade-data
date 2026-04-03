@@ -1,21 +1,21 @@
-# EUR Annual Exchange Rates (1999–2025)
+# EUR Annual Exchange Rates (1999 to Recent)
 
-**File:** `eur_annual_rates_1999_2025.csv`  
+**File:** `eur_annual_rates.csv`  
 **Source:** European Central Bank (ECB) euro foreign exchange reference rates  
 **Raw daily data:** https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.zip  
 **Validation:** Deutsche Bundesbank Exchange Rate Statistics PDFs  
-**Coverage:** 1999–2025 · 27 rows · 31 currencies · base: 1 EUR = X units
+**Coverage:** 31 currencies · base: 1 EUR = X units
 
 ---
 
 ## Data provenance by year range
 
-### 2012–2025 — Bundesbank PDFs (authoritative)
+### 2012–Recent — Bundesbank PDFs (authoritative)
 
-All values sourced directly from two Bundesbank sub-tables, fetched as PDFs:
+Values sourced directly from two Bundesbank sub-tables, fetched as PDFs:
 
-- **Table II.2 — Annual and monthly averages** (`wk1e1011-data.pdf`, issued 30 Jan 2026): provides confirmed annual averages for 2024 and 2025.
-- **Table II.3 — End-of-year rates and annual averages** (`wk1e1213-data.pdf`, issued 16 Feb 2026): provides confirmed annual averages for 2012–2025 across all covered currencies.
+- **Table II.2 — Annual and monthly averages** (`wk1e1011-data.pdf`): provides confirmed annual averages for 2012 forward.
+- **Table II.3 — End-of-year rates and annual averages** (`wk1e1213-data.pdf`): provides confirmed annual averages for 2012 forward across all covered currencies.
 
 For currencies where Table II.3 shows no published annual row (PHP, SGD, ZAR, CHF, THB, TRY, GBP, USD in the 2024–2025 rows), the annual average was computed by averaging the 12 monthly averages from Table II.2 of the same document — consistent with the Bundesbank's own stated methodology.
 
@@ -96,7 +96,7 @@ The following currencies appear in Bundesbank Tables II.2/II.3:
 
 **AI refresh prompt:**
 
-> It is now January [YEAR]. Please update `eur_annual_rates_1999_[PREV_YEAR].csv` with validated annual averages for [PREV_YEAR].
+> It is now January [YEAR]. Please update `eur_annual_rates.csv` with validated annual averages for [PREV_YEAR].
 >
 > Fetch and read these two Bundesbank sub-PDFs:
 > - Table II.3 (annual averages): `wk1e1213-data.pdf` at the current Bundesbank exchange rate statistics page
@@ -106,7 +106,7 @@ The following currencies appear in Bundesbank Tables II.2/II.3:
 >
 > For currencies with a published [PREV_YEAR] annual row in Table II.3, use that value directly. For any currency without one, compute the mean of the 12 monthly averages in Table II.2.
 >
-> Do not add new currency columns. Append the [PREV_YEAR] row and save as `eur_annual_rates_1999_[YEAR].csv`. Note the Bundesbank PDF date used as the validation source.
+> Do not add new currency columns. Append the [PREV_YEAR] row and save as `eur_annual_rates.csv`. Note the Bundesbank PDF date used as the validation source.
 
 ---
 
