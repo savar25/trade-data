@@ -7,6 +7,9 @@
   const yearSelect = document.getElementById("year-select");
   const topnSlider = document.getElementById("topn-slider");
   const topnLabel = document.getElementById("topn-label");
+  const currencyControl = document.getElementById("currency-control");
+  const currencySelect = document.getElementById("currency-select");
+  const industryLabelSelect = document.getElementById("industry-label-select");
   const loadButton = document.getElementById("load-button");
   const statusText = document.getElementById("status-text");
   const selectionPill = document.getElementById("selection-pill");
@@ -70,6 +73,45 @@
   const exactFormatter = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: 2
   });
+  const currencyExactFormatter = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: 2
+  });
+
+  const CURRENCY_NAMES = {
+    EUR: "Euro",
+    USD: "US Dollar",
+    JPY: "Japanese Yen",
+    GBP: "British Pound",
+    CHF: "Swiss Franc",
+    SEK: "Swedish Krona",
+    NOK: "Norwegian Krone",
+    DKK: "Danish Krone",
+    CZK: "Czech Koruna",
+    PLN: "Polish Zloty",
+    HUF: "Hungarian Forint",
+    RON: "Romanian Leu",
+    HRK: "Croatian Kuna",
+    BGN: "Bulgarian Lev",
+    TRY: "Turkish Lira",
+    AUD: "Australian Dollar",
+    CAD: "Canadian Dollar",
+    HKD: "Hong Kong Dollar",
+    SGD: "Singapore Dollar",
+    KRW: "South Korean Won",
+    ZAR: "South African Rand",
+    MXN: "Mexican Peso",
+    INR: "Indian Rupee",
+    CNY: "Chinese Renminbi",
+    BRL: "Brazilian Real",
+    IDR: "Indonesian Rupiah",
+    ILS: "Israeli New Shekel",
+    MYR: "Malaysian Ringgit",
+    PHP: "Philippine Peso",
+    THB: "Thai Baht",
+    ISK: "Icelandic Krona",
+    NZD: "New Zealand Dollar",
+    RUB: "Russian Rouble"
+  };
 
   let sankeyData = null;
   let activeDatasetScript = null;
@@ -85,8 +127,13 @@
   const industryNameByYear = {};
   let hashSelections = [];
   let activeResourceSelection = null;
+  let currentCurrency = "EUR";
+  let currentIndustryLabelMode = "title";
+  let availableCurrencyCodes = ["EUR"];
+  let currencyRatesPromise = null;
   const impactDataCache = {};
   const resourceSelectionCache = {};
+  const currencyRatesByYear = {};
   const impactBaseColumns = {
     trade_id: true,
     year: true,
@@ -214,6 +261,13 @@
     return "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + relativePath;
   }
 
+  function currencyRatesPath() {
+    if (runtimeConfig.currencyRatesPath) {
+      return runtimeConfig.currencyRatesPath;
+    }
+    return "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/eur_annual_rates.csv";
+  }
+
   async function fetchTextWithFallback(paths) {
     for (let i = 0; i < paths.length; i += 1) {
       const path = paths[i];
@@ -233,6 +287,52 @@
     return null;
   }
 
+  function loadCurrencyRates() {
+    if (currencyRatesPromise) {
+      return currencyRatesPromise;
+    }
+
+    currencyRatesPromise = fetchTextWithFallback([
+      currencyRatesPath(),
+      "https://cdn.jsdelivr.net/gh/savar25/trade-data@main/concordance/eur_annual_rates.csv"
+    ]).then(function (text) {
+      if (!text) {
+        return;
+      }
+      const lines = text.trim().split(/\r?\n/).filter(Boolean);
+      if (!lines.length) {
+        return;
+      }
+      const headers = parseCsvLine(lines[0]);
+      const yearIndex = headers.indexOf("Year");
+      const currencyColumns = headers.filter(function (header) {
+        return header !== "Year";
+      });
+      availableCurrencyCodes = ["EUR"].concat(currencyColumns);
+
+      for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+        const row = parseCsvLine(lines[lineIndex]);
+        const year = normalizeCode(row[yearIndex]);
+        if (!year) {
+          continue;
+        }
+        const rates = { EUR: 1 };
+        currencyColumns.forEach(function (currencyCode) {
+          const columnIndex = headers.indexOf(currencyCode);
+          const rate = parseNumber(row[columnIndex]);
+          if (rate > 0) {
+            rates[currencyCode] = rate;
+          }
+        });
+        currencyRatesByYear[year] = rates;
+      }
+    }).catch(function () {
+      availableCurrencyCodes = ["EUR"];
+    });
+
+    return currencyRatesPromise;
+  }
+
   function supportedFlows() {
     return manifest.supportedFlows && manifest.supportedFlows.length
       ? manifest.supportedFlows.slice()
@@ -247,16 +347,33 @@
     return flows && flows.length ? flows.slice() : supportedFlows();
   }
 
-  function resolveIndustryName(code) {
+  function resolveIndustryNames(code) {
     const key = normalizeCode(code);
     const yearMap = activeSelection && activeSelection.year
       ? industryNameByYear[normalizeCode(activeSelection.year)]
       : null;
     const fullName = (yearMap && yearMap[key]) || industryNameByCode[key];
-    if (fullName && fullName !== key) {
-      return fullName;
+    const verbose = fullName && fullName !== key ? fullName : key;
+    const title = String(verbose || "")
+      .replace(/\s*\([^)]*\)\s*$/g, "")
+      .split(";")[0]
+      .trim() || key;
+    return {
+      short: key,
+      title: title || key,
+      verbose: verbose || title || key
+    };
+  }
+
+  function resolveIndustryName(code) {
+    const names = resolveIndustryNames(code);
+    if (currentIndustryLabelMode === "short") {
+      return names.short;
     }
-    return key;
+    if (currentIndustryLabelMode === "verbose") {
+      return names.verbose;
+    }
+    return names.title;
   }
 
   function parseCsvLine(row) {
@@ -521,6 +638,9 @@
     const indicatorColumns = header.filter(function (column) {
       return !impactBaseColumns[column] && !impactIgnoredColumns[column];
     });
+    if (indicatorColumns.indexOf("amount") === -1) {
+      indicatorColumns.push("amount");
+    }
     const states = {};
     indicatorColumns.forEach(function (indicator) {
       states[indicator] = {
@@ -542,7 +662,9 @@
       const totalLevel = parseNumber(row[indexByColumn.total_level]);
 
       indicatorColumns.forEach(function (indicator) {
-        const value = parseNumber(row[indexByColumn[indicator]]);
+        const value = indicator === "amount"
+          ? amount
+          : parseNumber(row[indexByColumn[indicator]]);
         if (value <= 0) {
           return;
         }
@@ -842,7 +964,10 @@
     activeResourceSelection = null;
     updateHeroMeta();
     updateStatus("Loading " + country + " " + year + " " + flow + " impact dataset...", false);
-    return loadIndustryNamesForYears([year]).then(async function () {
+    return Promise.all([
+      loadIndustryNamesForYears([year]),
+      loadCurrencyRates()
+    ]).then(async function () {
       const nextImpactData = await loadImpactSelection(country, year, flow);
       const nextResourceSelection = await loadResourceSelection(country, year, flow);
 
@@ -858,6 +983,8 @@
 
       sankeyData = nextImpactData;
       activeResourceSelection = nextResourceSelection;
+      syncCurrencyOptions(year, currentCurrency);
+      syncGlobalOptionVisibility();
 
       if (!sankeyData || !sankeyData.dataset) {
         updateHeroMeta();
@@ -897,6 +1024,7 @@
 
   function titleizeLabel(label) {
     const replacements = {
+      amount: "Amount Spent",
       air_emissions: "Air Emissions",
       employment: "Employment",
       energy: "Energy",
@@ -946,6 +1074,109 @@
 
   function formatExact(value) {
     return exactFormatter.format(Number(value) || 0);
+  }
+
+  function currencyName(code) {
+    const key = normalizeCode(code);
+    return CURRENCY_NAMES[key] || key;
+  }
+
+  function currenciesForYear(year) {
+    const yearRates = currencyRatesByYear[normalizeCode(year)] || { EUR: 1 };
+    return availableCurrencyCodes.filter(function (currencyCode) {
+      return currencyCode === "EUR" || parseNumber(yearRates[currencyCode]) > 0;
+    });
+  }
+
+  function syncCurrencyOptions(year, preferredCurrency) {
+    if (!currencySelect) {
+      return;
+    }
+
+    const currencies = currenciesForYear(year);
+    const options = currencies.length ? currencies : ["EUR"];
+    currencySelect.innerHTML = "";
+    options.forEach(function (currencyCode) {
+      const option = document.createElement("option");
+      option.value = currencyCode;
+      option.textContent = currencyCode + " - " + currencyName(currencyCode);
+      currencySelect.appendChild(option);
+    });
+
+    const fallbackCurrency = normalizeCode(preferredCurrency) || "EUR";
+    currencySelect.value = options.includes(fallbackCurrency) ? fallbackCurrency : (options[0] || "EUR");
+    currentCurrency = currencySelect.value || "EUR";
+  }
+
+  function selectedCurrency() {
+    const amountVisible = activeImpactIndicators().some(function (indicator) {
+      return indicator === "amount";
+    });
+    if (!amountVisible) {
+      return "EUR";
+    }
+    return normalizeCode(currentCurrency || (currencySelect && currencySelect.value) || "EUR") || "EUR";
+  }
+
+  function currencyRateForYear(year, currencyCode) {
+    const currency = normalizeCode(currencyCode) || "EUR";
+    if (currency === "EUR") {
+      return 1;
+    }
+    const yearRates = currencyRatesByYear[normalizeCode(year)] || {};
+    return parseNumber(yearRates[currency]) || 1;
+  }
+
+  function convertAmountValue(value, year, currencyCode) {
+    return parseNumber(value) * currencyRateForYear(year, currencyCode);
+  }
+
+  function formatAmountExact(value) {
+    const currencyCode = selectedCurrency();
+    return currencyExactFormatter.format(
+      convertAmountValue(value, activeSelection && activeSelection.year, currencyCode)
+    ) + " " + currencyCode;
+  }
+
+  function formatAmountCompact(value) {
+    const currencyCode = selectedCurrency();
+    return compactFormatter.format(
+      convertAmountValue(value, activeSelection && activeSelection.year, currencyCode)
+    ) + " " + currencyCode;
+  }
+
+  function formatMetricExact(value, indicator) {
+    if (indicator === "amount") {
+      return formatAmountExact(value);
+    }
+    return formatExact(value);
+  }
+
+  function formatMetricCompact(value, indicator) {
+    if (indicator === "amount") {
+      return formatAmountCompact(value);
+    }
+    return formatCompact(value);
+  }
+
+  function activeImpactIndicators() {
+    return panels
+      .filter(function (panelState) {
+        return panelState.config.kind === "impact" && panelState.select;
+      })
+      .map(function (panelState) {
+        return normalizeCode(panelState.select.value);
+      })
+      .filter(Boolean);
+  }
+
+  function syncGlobalOptionVisibility() {
+    if (currencyControl) {
+      const showCurrency = activeImpactIndicators().some(function (indicator) {
+        return indicator === "amount";
+      });
+      currencyControl.style.display = showCurrency ? "flex" : "none";
+    }
   }
 
   function formatPercent(value) {
@@ -1001,7 +1232,7 @@
     };
   }
 
-  function buildLeaderRows(leader, link) {
+  function buildLeaderRows(leader, link, indicator) {
     if (!leader) {
       return [];
     }
@@ -1013,7 +1244,7 @@
       },
       {
         label: "Leader Total",
-        value: formatCompact(leader.value) + " (" + formatExact(leader.value) + ")"
+        value: formatMetricCompact(leader.value, indicator) + " (" + formatMetricExact(leader.value, indicator) + ")"
       },
       {
         label: "Leader Share",
@@ -1225,6 +1456,7 @@
     if (select) {
       select.addEventListener("change", function () {
         resetDetailPanels();
+        syncGlobalOptionVisibility();
         renderPanel(panelState);
       });
     }
@@ -1416,6 +1648,8 @@
     }
 
     const layout = buildLayout(options.links);
+    const exactValueFormatter = options.formatExactValue || formatExact;
+    const compactValueFormatter = options.formatCompactValue || formatCompact;
 
     layout.links.forEach(function (link) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
@@ -1450,7 +1684,7 @@
       rect.setAttribute("rx", "0");
       rect.setAttribute("fill", colorFor(node.code, 0.9));
       rect.setAttribute("opacity", "0.92");
-      appendTitle(rect, node.label + " (" + node.code + ") source total: " + formatExact(node.total));
+      appendTitle(rect, node.label + " (" + node.code + ") source total: " + exactValueFormatter(node.total));
       group.appendChild(rect);
 
       const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -1482,7 +1716,7 @@
       value.setAttribute("x", node.x - 10);
       value.setAttribute("y", node.labelCenter + 12);
       value.setAttribute("text-anchor", "end");
-      value.textContent = formatCompact(node.total);
+      value.textContent = compactValueFormatter(node.total);
       group.appendChild(value);
 
       panelState.svg.appendChild(group);
@@ -1500,7 +1734,7 @@
       rect.setAttribute("rx", "0");
       rect.setAttribute("fill", colorFor(node.code, 0.9));
       rect.setAttribute("opacity", "0.92");
-      appendTitle(rect, node.label + " (" + node.code + ") target total: " + formatExact(node.total));
+      appendTitle(rect, node.label + " (" + node.code + ") target total: " + exactValueFormatter(node.total));
       group.appendChild(rect);
 
       const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -1532,7 +1766,7 @@
       value.setAttribute("x", node.x + layout.nodeWidth + 10);
       value.setAttribute("y", node.labelCenter + 9);
       value.setAttribute("text-anchor", "start");
-      value.textContent = formatCompact(node.total);
+      value.textContent = compactValueFormatter(node.total);
       group.appendChild(value);
 
       panelState.svg.appendChild(group);
@@ -1693,18 +1927,24 @@
       subtitle: "",
       links: links,
       stats: {
-        total: formatCompact(total) + " (" + formatExact(total) + ")",
-        largest: flowLabel(topLink.source, topLink.target) + " (" + formatCompact(topLink.value) + ")",
+        total: formatMetricCompact(total, indicator) + " (" + formatMetricExact(total, indicator) + ")",
+        largest: flowLabel(topLink.source, topLink.target) + " (" + formatMetricCompact(topLink.value, indicator) + ")",
         leader: leader
-          ? leader.actorLabel + ": " + displayIndName(leader.code) + " (" + formatCompact(leader.value) + ")"
+          ? leader.actorLabel + ": " + displayIndName(leader.code) + " (" + formatMetricCompact(leader.value, indicator) + ")"
           : flowDescriptor + " flow"
+      },
+      formatExactValue: function (value) {
+        return formatMetricExact(value, indicator);
+      },
+      formatCompactValue: function (value) {
+        return formatMetricCompact(value, indicator);
       },
       buildTitle: function (link) {
         const lines = [
-          titleizeLabel(indicator) + ": " + formatExact(link.value),
+          titleizeLabel(indicator) + ": " + formatMetricExact(link.value, indicator),
           "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
-          "Trade Amount: " + formatExact(link.amount),
+          "Amount Spent: " + formatAmountExact(link.amount),
           "Total Impact Value: " + formatExact(link.total_impact_value)
         ];
         if (leader) {
@@ -1719,8 +1959,8 @@
           { label: "Indicator", value: titleizeLabel(indicator) },
           { label: "Selection Flow", value: flowDescriptor },
           { label: "Flow", value: flowLabel(link.source, link.target) },
-          { label: "Value", value: formatExact(link.value) }
-        ].concat(buildLeaderRows(leader, link));
+          { label: "Value", value: formatMetricExact(link.value, indicator) }
+        ].concat(buildLeaderRows(leader, link, indicator));
       },
       buildClickRows: function (link) {
         return [
@@ -1731,9 +1971,10 @@
           { label: "Importer", value: displayIndName(link.target) },
           { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
-          { label: "Amount", value: formatExact(link.amount) },
+          { label: "Amount Spent", value: formatAmountExact(link.amount) },
+          { label: "Value", value: formatMetricExact(link.value, indicator) },
           { label: "Impact", value: formatExact(link.total_impact_value) }
-        ].concat(buildLeaderRows(leader, link));
+        ].concat(buildLeaderRows(leader, link, indicator));
       }
     });
   }
@@ -1790,7 +2031,7 @@
           "Total Resources: " + formatExact(link.value),
           "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
-          "Trade Amount: " + formatExact(link.amount)
+          "Amount Spent: " + formatAmountExact(link.amount)
         ].join("\n");
       },
       buildHoverRows: function (link) {
@@ -1807,7 +2048,7 @@
           { label: "Dataset", value: "trade_resource.csv" },
           { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
-          { label: "Amount", value: formatExact(link.amount) },
+          { label: "Amount Spent", value: formatAmountExact(link.amount) },
           { label: "Resources", value: formatExact(link.value) }
         ];
       }
@@ -1887,7 +2128,7 @@
         if (item.spotlight) {
           rows.push({ label: "Flow", value: flowLabel(item.spotlight.source, item.spotlight.target) });
           rows.push({ label: "Trade ID", value: String(item.spotlight.trade_id) });
-          rows.push({ label: "Amount", value: formatExact(item.spotlight.amount) });
+          rows.push({ label: "Amount Spent", value: formatAmountExact(item.spotlight.amount) });
           rows.push({ label: "Spotlight Value", value: formatExact(item.spotlight.value) });
         }
 
@@ -2090,6 +2331,22 @@
     });
   }
 
+  if (currencySelect) {
+    currencySelect.innerHTML = '<option value="EUR">EUR - Euro</option>';
+    currencySelect.addEventListener("change", function () {
+      currentCurrency = normalizeCode(currencySelect.value) || "EUR";
+      renderAllPanels();
+    });
+  }
+
+  if (industryLabelSelect) {
+    industryLabelSelect.value = currentIndustryLabelMode;
+    industryLabelSelect.addEventListener("change", function () {
+      currentIndustryLabelMode = normalizeCode(industryLabelSelect.value) || "title";
+      renderAllPanels();
+    });
+  }
+
   document.addEventListener("hashChangeEvent", syncSelectionFromHash);
   window.addEventListener("hashchange", syncSelectionFromHash);
   window.addEventListener("message", function (event) {
@@ -2142,6 +2399,7 @@
     buildPanel(index, config);
   });
 
+  syncGlobalOptionVisibility();
   updateHeroMeta();
   renderAllPanels();
   notifyHostHeight();
