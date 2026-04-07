@@ -110,6 +110,20 @@
     border-radius: 8px;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
   }
+  .panel[data-panel="5"] {
+    grid-column: 1 / -1;
+    min-height: 660px;
+  }
+  .panel[data-panel="5"] .chart-wrap {
+    min-height: 520px;
+  }
+  .panel[data-panel="6"] {
+    grid-column: 1 / -1;
+    min-height: 680px;
+  }
+  .panel[data-panel="6"] .chart-wrap {
+    min-height: 520px;
+  }
   .panel-head {
     display: flex;
     justify-content: space-between;
@@ -196,6 +210,12 @@
   }
   .chart-wrap svg {
     display: block;
+    width: 100%;
+    height: 100%;
+  }
+  .map-host {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
   }
@@ -355,7 +375,7 @@
   <div class="sankey-page-header">
     <h2>Worldwide Trade Impact And Resource Dashboard</h2>
     <p>
-      Compare trade impact pathways and resource profiles using the same country, year, and flow controls across all four panels.
+      Compare trade impact pathways, resource profiles, and import/export partner scores using the same country, year, and flow controls across the dashboard.
       Data is loaded from repository-hosted trade-data assets and aligned with the Sankey page layout.
     </p>
   </div>
@@ -379,6 +399,18 @@
         <option value="domestic">Domestic</option>
         <option value="imports">Imports</option>
         <option value="exports">Exports</option>
+      </select>
+    </div>
+    <div id="currency-control" class="control">
+      <label for="currency-select">Currency</label>
+      <select id="currency-select"></select>
+    </div>
+    <div class="control">
+      <label for="industry-label-select">Industry Labels</label>
+      <select id="industry-label-select">
+        <option value="title">Title</option>
+        <option value="short">Short name</option>
+        <option value="verbose">Complete verbose name</option>
       </select>
     </div>
     <div class="control">

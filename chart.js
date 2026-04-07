@@ -29,7 +29,6 @@
       selectable: true,
       defaultIndicatorIndex: 0,
       stats: [
-        { key: "total", label: "Displayed Total" },
         { key: "largest", label: "Largest Link" },
         { key: "leader", label: "Trade Leader" }
       ]
@@ -40,7 +39,6 @@
       selectable: true,
       defaultIndicatorIndex: 1,
       stats: [
-        { key: "total", label: "Displayed Total" },
         { key: "largest", label: "Largest Link" },
         { key: "leader", label: "Trade Leader" }
       ]
@@ -50,7 +48,6 @@
       title: "Resource Flow",
       selectable: false,
       stats: [
-        { key: "total", label: "Displayed Total" },
         { key: "largest", label: "Largest Link" }
       ]
     },
@@ -62,6 +59,29 @@
         { key: "total", label: "Visible Buckets" },
         { key: "scope", label: "Dominant Bucket" },
         { key: "largest", label: "Spotlight Flow" }
+      ]
+    },
+    {
+      kind: "partner-score",
+      title: "Best Import/Export Score",
+      selectable: true,
+      defaultIndicatorIndex: 0,
+      viewBoxHeight: 520,
+      stats: [
+        { key: "best", label: "Best Score" },
+        { key: "strongest", label: "Strongest Trade" },
+        { key: "coverage", label: "Visible Partners" }
+      ]
+    },
+    {
+      kind: "trade-map",
+      title: "Trade Partner Map",
+      selectable: false,
+      viewBoxHeight: 520,
+      stats: [
+        { key: "best", label: "Top Partner" },
+        { key: "mapped", label: "Mapped Countries" },
+        { key: "unmapped", label: "Regional Aggregates" }
       ]
     }
   ];
@@ -131,9 +151,11 @@
   let currentIndustryLabelMode = "title";
   let availableCurrencyCodes = ["EUR"];
   let currencyRatesPromise = null;
+  let countryLookupPromise = null;
   const impactDataCache = {};
   const resourceSelectionCache = {};
   const currencyRatesByYear = {};
+  const countryLookupByCode = {};
   const impactBaseColumns = {
     trade_id: true,
     year: true,
@@ -187,6 +209,64 @@
     Air: [
       "emission/air"
     ]
+  };
+  const aggregatePartnerLabels = {
+    WA: "Asia-Pacific Aggregate",
+    WE: "Europe Aggregate",
+    WF: "Africa Aggregate",
+    WL: "Americas Aggregate",
+    WM: "Middle East Aggregate"
+  };
+  const partnerGeoCenters = {
+    AT: { lon: 14.3, lat: 47.7 },
+    AU: { lon: 134.0, lat: -25.0 },
+    BE: { lon: 4.6, lat: 50.8 },
+    BG: { lon: 25.4, lat: 42.7 },
+    BR: { lon: -51.0, lat: -10.0 },
+    CA: { lon: -106.0, lat: 57.0 },
+    CH: { lon: 8.2, lat: 46.8 },
+    CN: { lon: 104.0, lat: 35.0 },
+    CY: { lon: 33.2, lat: 35.0 },
+    CZ: { lon: 15.5, lat: 49.8 },
+    DE: { lon: 10.4, lat: 51.2 },
+    DK: { lon: 9.5, lat: 56.2 },
+    EE: { lon: 25.0, lat: 58.7 },
+    ES: { lon: -3.7, lat: 40.4 },
+    FI: { lon: 25.7, lat: 63.4 },
+    FR: { lon: 2.2, lat: 46.2 },
+    GB: { lon: -2.8, lat: 54.5 },
+    GR: { lon: 21.8, lat: 39.1 },
+    HR: { lon: 15.2, lat: 45.1 },
+    HU: { lon: 19.3, lat: 47.2 },
+    ID: { lon: 117.0, lat: -2.0 },
+    IE: { lon: -8.2, lat: 53.4 },
+    IN: { lon: 78.9, lat: 21.0 },
+    IT: { lon: 12.6, lat: 42.8 },
+    JP: { lon: 138.0, lat: 37.0 },
+    KR: { lon: 127.8, lat: 36.3 },
+    LT: { lon: 23.9, lat: 55.2 },
+    LU: { lon: 6.1, lat: 49.8 },
+    LV: { lon: 24.6, lat: 56.9 },
+    MT: { lon: 14.4, lat: 35.9 },
+    MX: { lon: -102.0, lat: 23.0 },
+    NL: { lon: 5.3, lat: 52.1 },
+    NO: { lon: 8.5, lat: 61.5 },
+    PL: { lon: 19.1, lat: 51.9 },
+    PT: { lon: -8.0, lat: 39.5 },
+    RO: { lon: 24.9, lat: 45.9 },
+    RU: { lon: 90.0, lat: 60.0 },
+    SE: { lon: 15.0, lat: 62.0 },
+    SI: { lon: 14.9, lat: 46.1 },
+    SK: { lon: 19.7, lat: 48.7 },
+    TR: { lon: 35.2, lat: 39.0 },
+    TW: { lon: 121.0, lat: 23.7 },
+    US: { lon: -98.0, lat: 39.8 },
+    WA: { lon: 105.0, lat: 20.0 },
+    WE: { lon: 15.0, lat: 50.0 },
+    WF: { lon: 20.0, lat: 3.0 },
+    WL: { lon: -70.0, lat: 12.0 },
+    WM: { lon: 45.0, lat: 24.0 },
+    ZA: { lon: 24.0, lat: -29.0 }
   };
 
   function normalizeBasePath(path) {
@@ -285,6 +365,98 @@
       }
     }
     return null;
+  }
+
+  function chooseCountryLabel(countries) {
+    return countries.slice().sort(function (left, right) {
+      return left.length - right.length || left.localeCompare(right);
+    })[0] || "";
+  }
+
+  function countryLabelForCode(code) {
+    const key = normalizeCode(code);
+    if (!key) {
+      return "";
+    }
+
+    const lookup = countryLookupByCode[key];
+    if (!lookup) {
+      return key;
+    }
+    if (lookup.mappable && lookup.name) {
+      return lookup.name;
+    }
+    return lookup.label || key;
+  }
+
+  function loadCountryLookup() {
+    if (countryLookupPromise) {
+      return countryLookupPromise;
+    }
+
+    countryLookupPromise = fetchTextWithFallback([
+      "./concordance/exio_country_concordance.csv",
+      "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/exio_country_concordance.csv"
+    ]).then(function (text) {
+      if (!text) {
+        return;
+      }
+
+      const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+      if (lines.length < 2) {
+        return;
+      }
+
+      const header = parseCsvLine(lines[0]);
+      const indexByColumn = {};
+      header.forEach(function (column, index) {
+        indexByColumn[column] = index;
+      });
+
+      const pendingByCode = {};
+      for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+        const row = parseCsvLine(lines[lineIndex]);
+        const code = normalizeCode(row[indexByColumn.CountryCode]);
+        const name = String(row[indexByColumn.Country] || "").trim();
+        const iso = normalizeCode(row[indexByColumn.ISO_Code]);
+
+        if (!code || !name) {
+          continue;
+        }
+
+        if (!pendingByCode[code]) {
+          pendingByCode[code] = {
+            countries: new Set(),
+            isos: new Set()
+          };
+        }
+        pendingByCode[code].countries.add(name);
+        if (iso) {
+          pendingByCode[code].isos.add(iso);
+        }
+      }
+
+      Object.keys(pendingByCode).forEach(function (code) {
+        const entry = pendingByCode[code];
+        const countries = Array.from(entry.countries);
+        const isos = Array.from(entry.isos);
+        const label = chooseCountryLabel(countries) || aggregatePartnerLabels[code] || code;
+        const mappable = isos.length === 1;
+
+        countryLookupByCode[code] = {
+          code: code,
+          iso: mappable ? isos[0] : "",
+          name: mappable ? label : "",
+          label: mappable ? label : (aggregatePartnerLabels[code] || label || (code + " Aggregate")),
+          mappable: mappable,
+          countryCount: countries.length
+        };
+      });
+    }).catch(function () {
+      return;
+    });
+
+    return countryLookupPromise;
   }
 
   function loadCurrencyRates() {
@@ -645,7 +817,8 @@
     indicatorColumns.forEach(function (indicator) {
       states[indicator] = {
         sourceTotals: {},
-        bestLinks: {}
+        bestLinks: {},
+        partnerTotals: {}
       };
     });
 
@@ -653,6 +826,8 @@
       const row = parseCsvLine(lines[lineIndex]);
       const source = normalizeCode(row[indexByColumn.industry1]);
       const target = normalizeCode(row[indexByColumn.industry2]);
+      const origin = normalizeCode(row[indexByColumn.region1]);
+      const destination = normalizeCode(row[indexByColumn.region2]);
       if (!source || !target || (manifest.excludedSources || []).includes(source)) {
         continue;
       }
@@ -660,26 +835,38 @@
       const tradeId = parseNumber(row[indexByColumn.trade_id]);
       const amount = parseNumber(row[indexByColumn.amount]);
       const totalLevel = parseNumber(row[indexByColumn.total_level]);
+      const partner = partnerCountryCodeForSelection(origin, destination, country, flow);
 
       indicatorColumns.forEach(function (indicator) {
         const value = indicator === "amount"
           ? amount
           : parseNumber(row[indexByColumn[indicator]]);
-        if (value <= 0) {
-          return;
-        }
 
         const state = states[indicator];
-        state.sourceTotals[source] = (state.sourceTotals[source] || 0) + value;
-        if (!state.bestLinks[source] || value > state.bestLinks[source].value) {
-          state.bestLinks[source] = {
-            trade_id: tradeId,
-            source: source,
-            target: target,
-            value: value,
-            amount: amount,
-            total_impact_value: totalLevel
-          };
+        if (value > 0) {
+          state.sourceTotals[source] = (state.sourceTotals[source] || 0) + value;
+          if (!state.bestLinks[source] || value > state.bestLinks[source].value) {
+            state.bestLinks[source] = {
+              trade_id: tradeId,
+              source: source,
+              target: target,
+              value: value,
+              amount: amount,
+              total_impact_value: totalLevel
+            };
+          }
+        }
+
+        if (partner && (value > 0 || amount > 0)) {
+          if (!state.partnerTotals[partner]) {
+            state.partnerTotals[partner] = {
+              partner: partner,
+              metricValue: 0,
+              amountValue: 0
+            };
+          }
+          state.partnerTotals[partner].metricValue += value;
+          state.partnerTotals[partner].amountValue += amount;
         }
       });
     }
@@ -691,11 +878,54 @@
         .sort(function (left, right) {
           return (state.sourceTotals[right] - state.sourceTotals[left]) || left.localeCompare(right);
         });
+      const partnerRows = Object.keys(state.partnerTotals).map(function (partner) {
+        const row = state.partnerTotals[partner];
+        const amountValue = parseNumber(row.amountValue);
+        const metricValue = parseNumber(row.metricValue);
+        return {
+          partner: partner,
+          metricValue: metricValue,
+          amountValue: amountValue,
+          intensity: amountValue > 0 ? (metricValue / amountValue) : 0
+        };
+      });
+      const maxAmount = partnerRows.length
+        ? Math.max.apply(null, partnerRows.map(function (row) {
+          return row.amountValue;
+        }))
+        : 0;
+      const intensities = partnerRows.map(function (row) {
+        return row.intensity;
+      });
+      const minIntensity = intensities.length ? Math.min.apply(null, intensities) : 0;
+      const maxIntensity = intensities.length ? Math.max.apply(null, intensities) : 0;
+      const invertIntensity = scoreDirectionForIndicator(indicator) === "lower";
+      const partnerBreakdown = partnerRows
+        .map(function (row) {
+          const tradeStrength = maxAmount > 0 ? (row.amountValue / maxAmount) : 0;
+          const impactEfficiency = indicator === "amount"
+            ? tradeStrength
+            : normalizeRange(row.intensity, minIntensity, maxIntensity, invertIntensity);
+          const score = indicator === "amount"
+            ? (tradeStrength * 100)
+            : ((tradeStrength * 0.6 + impactEfficiency * 0.4) * 100);
+          return Object.assign({}, row, {
+            tradeStrength: tradeStrength,
+            impactEfficiency: impactEfficiency,
+            score: score
+          });
+        })
+        .sort(function (left, right) {
+          return (right.score - left.score) ||
+            (right.amountValue - left.amountValue) ||
+            left.partner.localeCompare(right.partner);
+        });
 
       dataset[indicator] = {
         source_totals: state.sourceTotals,
         links_by_source: state.bestLinks,
-        ranked_sources: rankedSources
+        ranked_sources: rankedSources,
+        partner_breakdown: partnerBreakdown
       };
     });
 
@@ -966,7 +1196,8 @@
     updateStatus("Loading " + country + " " + year + " " + flow + " impact dataset...", false);
     return Promise.all([
       loadIndustryNamesForYears([year]),
-      loadCurrencyRates()
+      loadCurrencyRates(),
+      loadCountryLookup()
     ]).then(async function () {
       const nextImpactData = await loadImpactSelection(country, year, flow);
       const nextResourceSelection = await loadResourceSelection(country, year, flow);
@@ -1109,12 +1340,6 @@
   }
 
   function selectedCurrency() {
-    const amountVisible = activeImpactIndicators().some(function (indicator) {
-      return indicator === "amount";
-    });
-    if (!amountVisible) {
-      return "EUR";
-    }
     return normalizeCode(currentCurrency || (currencySelect && currencySelect.value) || "EUR") || "EUR";
   }
 
@@ -1145,6 +1370,12 @@
     ) + " " + currencyCode;
   }
 
+  function convertIntensityPerCurrency(value) {
+    const currencyCode = selectedCurrency();
+    const rate = currencyRateForYear(activeSelection && activeSelection.year, currencyCode);
+    return rate > 0 ? (parseNumber(value) / rate) : parseNumber(value);
+  }
+
   function formatMetricExact(value, indicator) {
     if (indicator === "amount") {
       return formatAmountExact(value);
@@ -1162,7 +1393,7 @@
   function activeImpactIndicators() {
     return panels
       .filter(function (panelState) {
-        return panelState.config.kind === "impact" && panelState.select;
+        return panelState.select;
       })
       .map(function (panelState) {
         return normalizeCode(panelState.select.value);
@@ -1172,10 +1403,7 @@
 
   function syncGlobalOptionVisibility() {
     if (currencyControl) {
-      const showCurrency = activeImpactIndicators().some(function (indicator) {
-        return indicator === "amount";
-      });
-      currencyControl.style.display = showCurrency ? "flex" : "none";
+      currencyControl.style.display = "flex";
     }
   }
 
@@ -1185,6 +1413,169 @@
       return "0%";
     }
     return (numeric * 100).toFixed(1).replace(/\.0$/, "") + "%";
+  }
+
+  function formatScore(value) {
+    return parseNumber(value).toFixed(1);
+  }
+
+  function normalizeRange(value, minValue, maxValue, invert) {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    if (!Number.isFinite(minValue) || !Number.isFinite(maxValue) || maxValue <= minValue) {
+      return 1;
+    }
+    const normalized = (value - minValue) / (maxValue - minValue);
+    return invert ? (1 - normalized) : normalized;
+  }
+
+  function partnerCountryCodeForSelection(origin, destination, country, flow) {
+    const selectedCountry = normalizeCode(country);
+
+    if (flow === "exports") {
+      if (destination && destination !== selectedCountry) {
+        return destination;
+      }
+      if (origin && origin !== selectedCountry) {
+        return origin;
+      }
+      return destination || origin;
+    }
+
+    if (flow === "imports") {
+      if (origin && origin !== selectedCountry) {
+        return origin;
+      }
+      if (destination && destination !== selectedCountry) {
+        return destination;
+      }
+      return origin || destination;
+    }
+
+    return "";
+  }
+
+  function scoreDirectionForIndicator(indicator) {
+    const key = normalizeCode(indicator).toLowerCase();
+    if (!key || key === "amount") {
+      return "higher";
+    }
+    if (key.indexOf("employment") !== -1 || key.indexOf("job") !== -1) {
+      return "higher";
+    }
+    return "lower";
+  }
+
+  function projectGeoPoint(lon, lat, bounds) {
+    return {
+      x: bounds.left + ((lon + 180) / 360) * bounds.width,
+      y: bounds.top + ((90 - lat) / 180) * bounds.height
+    };
+  }
+
+  function buildGeoPolygonPath(points, bounds) {
+    if (!Array.isArray(points) || !points.length) {
+      return "";
+    }
+
+    return points.map(function (point, index) {
+      const projected = projectGeoPoint(point[0], point[1], bounds);
+      return (index === 0 ? "M" : "L") + projected.x + " " + projected.y;
+    }).join(" ") + " Z";
+  }
+
+  function renderGeoBackdrop(panelState, bounds) {
+    const frame = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    frame.setAttribute("x", bounds.left);
+    frame.setAttribute("y", bounds.top);
+    frame.setAttribute("width", bounds.width);
+    frame.setAttribute("height", bounds.height);
+    frame.setAttribute("rx", "14");
+    frame.setAttribute("fill", "rgba(239, 246, 255, 0.72)");
+    frame.setAttribute("stroke", "rgba(84, 105, 129, 0.18)");
+    panelState.svg.appendChild(frame);
+
+    [-120, -60, 0, 60, 120].forEach(function (lon) {
+      const point = projectGeoPoint(lon, 0, bounds);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", point.x);
+      line.setAttribute("y1", bounds.top);
+      line.setAttribute("x2", point.x);
+      line.setAttribute("y2", bounds.top + bounds.height);
+      line.setAttribute("stroke", "rgba(84, 105, 129, 0.12)");
+      line.setAttribute("stroke-dasharray", "4 7");
+      panelState.svg.appendChild(line);
+    });
+
+    [-60, -30, 0, 30, 60].forEach(function (lat) {
+      const point = projectGeoPoint(0, lat, bounds);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", bounds.left);
+      line.setAttribute("y1", point.y);
+      line.setAttribute("x2", bounds.left + bounds.width);
+      line.setAttribute("y2", point.y);
+      line.setAttribute("stroke", "rgba(84, 105, 129, 0.12)");
+      line.setAttribute("stroke-dasharray", "4 7");
+      panelState.svg.appendChild(line);
+    });
+
+    [
+      {
+        points: [[-168, 72], [-150, 60], [-138, 57], [-128, 52], [-123, 45], [-117, 33], [-108, 24], [-98, 18], [-90, 20], [-83, 26], [-79, 33], [-85, 45], [-96, 55], [-110, 65], [-134, 72]]
+      },
+      {
+        points: [[-82, 12], [-75, 7], [-71, -4], [-68, -14], [-64, -24], [-60, -36], [-54, -50], [-46, -54], [-40, -46], [-38, -28], [-44, -11], [-52, 2], [-66, 11]]
+      },
+      {
+        points: [[-54, 60], [-47, 70], [-38, 78], [-24, 76], [-20, 68], [-28, 60], [-42, 57]]
+      },
+      {
+        points: [[-11, 36], [-8, 43], [2, 47], [14, 52], [24, 58], [18, 66], [6, 61], [-2, 55], [-10, 48]]
+      },
+      {
+        points: [[-17, 33], [-6, 35], [10, 36], [24, 32], [36, 20], [43, 6], [39, -13], [30, -26], [18, -35], [4, -33], [-8, -18], [-12, 2], [-10, 18]]
+      },
+      {
+        points: [[24, 35], [36, 45], [54, 54], [78, 60], [102, 62], [124, 56], [146, 48], [154, 36], [146, 22], [126, 10], [110, 6], [96, 14], [84, 24], [68, 28], [50, 28], [36, 24], [28, 20]]
+      },
+      {
+        points: [[69, 24], [79, 21], [86, 17], [82, 9], [77, 7], [72, 12]]
+      },
+      {
+        points: [[112, -11], [116, -23], [128, -35], [144, -40], [154, -30], [151, -18], [139, -11], [124, -12]]
+      },
+      {
+        points: [[48, -14], [50, -22], [47, -25], [44, -20]]
+      }
+    ].forEach(function (shape) {
+      const land = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      land.setAttribute("d", buildGeoPolygonPath(shape.points, bounds));
+      land.setAttribute("fill", "rgba(201, 217, 187, 0.92)");
+      land.setAttribute("stroke", "rgba(92, 112, 88, 0.4)");
+      land.setAttribute("stroke-width", "1");
+      panelState.svg.appendChild(land);
+    });
+
+    [
+      { label: "North America", lon: -110, lat: 48 },
+      { label: "South America", lon: -62, lat: -20 },
+      { label: "Europe", lon: 12, lat: 56 },
+      { label: "Africa", lon: 22, lat: 2 },
+      { label: "Asia", lon: 95, lat: 38 },
+      { label: "Oceania", lon: 138, lat: -25 }
+    ].forEach(function (region) {
+      const point = projectGeoPoint(region.lon, region.lat, bounds);
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("x", point.x);
+      label.setAttribute("y", point.y);
+      label.setAttribute("text-anchor", "middle");
+      label.setAttribute("fill", "rgba(67, 86, 105, 0.45)");
+      label.setAttribute("font-size", "12");
+      label.setAttribute("font-weight", "700");
+      label.textContent = region.label;
+      panelState.svg.appendChild(label);
+    });
   }
 
   function summarizeTradeLeader(flow, links, total) {
@@ -1436,9 +1827,18 @@
 
     const chartWrap = createElement("div", "chart-wrap");
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 760 430");
+    const viewBoxWidth = config.viewBoxWidth || 760;
+    const viewBoxHeight = config.viewBoxHeight || 430;
+    svg.setAttribute("viewBox", "0 0 " + viewBoxWidth + " " + viewBoxHeight);
     svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
     chartWrap.appendChild(svg);
+
+    let mapHost = null;
+    if (config.kind === "trade-map") {
+      mapHost = createElement("div", "map-host");
+      mapHost.hidden = true;
+      chartWrap.appendChild(mapHost);
+    }
 
     panel.append(head, stats, chartWrap);
     chartGrid.appendChild(panel);
@@ -1450,7 +1850,11 @@
       subtitle: subtitle,
       select: select,
       svg: svg,
-      statValues: statValues
+      mapHost: mapHost,
+      mapChart: null,
+      statValues: statValues,
+      viewBoxWidth: viewBoxWidth,
+      viewBoxHeight: viewBoxHeight
     };
 
     if (select) {
@@ -1475,6 +1879,14 @@
     panelState.subtitle.textContent = message;
     setPanelStats(panelState, {});
     panelState.svg.innerHTML = "";
+    panelState.svg.style.display = "";
+
+    if (panelState.mapHost) {
+      panelState.mapHost.hidden = true;
+    }
+    if (panelState.mapChart) {
+      panelState.mapChart.clear();
+    }
 
     const empty = document.createElementNS("http://www.w3.org/2000/svg", "text");
     empty.setAttribute("x", "380");
@@ -1658,7 +2070,7 @@
       path.setAttribute("fill", "none");
       path.setAttribute("stroke", colorFor(link.data.source, 0.38));
       path.setAttribute("stroke-width", Math.max(link.thickness, 1));
-      path.setAttribute("stroke-linecap", "round");
+      path.setAttribute("stroke-linecap", "butt");
       appendTitle(path, options.title + "\n" + options.buildTitle(link.data));
       wireInteractiveMark(
         path,
@@ -1868,6 +2280,357 @@
       }
       value.textContent = formatCompact(item.value);
       panelState.svg.appendChild(value);
+    });
+  }
+
+  function renderPartnerScorePanel(panelState) {
+    if (!sankeyData || !sankeyData.dataset) {
+      showEmpty(panelState, "Choose a country, flow, and year; data loads automatically.");
+      return;
+    }
+
+    if (!activeSelection || activeSelection.flow === "domestic") {
+      showEmpty(panelState, "Partner-country score is available for imports and exports.");
+      return;
+    }
+
+    const fallbackIndicator =
+      defaultIndicators()[panelState.config.defaultIndicatorIndex] ||
+      indicatorColumns()[panelState.config.defaultIndicatorIndex] ||
+      indicatorColumns()[0];
+    const indicator = panelState.select && panelState.select.value ? panelState.select.value : fallbackIndicator;
+    const indicatorData = sankeyData.dataset[indicator];
+    const rows = indicatorData && indicatorData.partner_breakdown
+      ? indicatorData.partner_breakdown.slice(0, 10)
+      : [];
+
+    if (!rows.length) {
+      showEmpty(panelState, "No partner-country data available for this selection.");
+      return;
+    }
+
+    panelState.title.textContent = panelState.config.title + ": " + titleizeLabel(indicator);
+    panelState.subtitle.textContent = indicator === "amount"
+      ? "Countries are ranked strongest to weakest by amount spent relative to the largest visible partner."
+      : "Score blends 60% trade-value strength with 40% indicator efficiency per amount spent, ranked best to worst.";
+    panelState.svg.innerHTML = "";
+
+    const strongestTrade = rows.slice().sort(function (left, right) {
+      return (right.amountValue - left.amountValue) || left.partner.localeCompare(right.partner);
+    })[0];
+    setPanelStats(panelState, {
+      best: countryLabelForCode(rows[0].partner) + " (Score " + formatScore(rows[0].score) + ")",
+      strongest: countryLabelForCode(strongestTrade.partner) + " (" + formatAmountCompact(strongestTrade.amountValue) + ")",
+      coverage: rows.length + " of " + indicatorData.partner_breakdown.length + " partners"
+    });
+
+    const width = panelState.viewBoxWidth || 760;
+    const height = panelState.viewBoxHeight || 520;
+    const left = 210;
+    const right = 150;
+    const top = 56;
+    const bottom = 28;
+    const barHeight = 22;
+    const rowGap = 22;
+    const plotWidth = width - left - right;
+    const maxScore = 100;
+
+    [0, 25, 50, 75, 100].forEach(function (tick) {
+      const x = left + plotWidth * (tick / maxScore);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("class", "bar-grid-line");
+      line.setAttribute("x1", x);
+      line.setAttribute("y1", top - 24);
+      line.setAttribute("x2", x);
+      line.setAttribute("y2", height - bottom);
+      panelState.svg.appendChild(line);
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("class", "bar-grid-text");
+      label.setAttribute("x", x);
+      label.setAttribute("y", top - 30);
+      label.setAttribute("text-anchor", tick === 100 ? "end" : tick === 0 ? "start" : "middle");
+      label.textContent = String(tick);
+      panelState.svg.appendChild(label);
+    });
+
+    rows.forEach(function (item, index) {
+      const y = top + index * (barHeight + rowGap);
+      const barWidth = Math.max(4, plotWidth * (item.score / maxScore));
+
+      const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      label.setAttribute("class", "bar-label");
+      label.setAttribute("x", left - 14);
+      label.setAttribute("y", y + barHeight / 2 - 3);
+      label.setAttribute("text-anchor", "end");
+      label.textContent = countryLabelForCode(item.partner);
+      panelState.svg.appendChild(label);
+
+      const hint = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      hint.setAttribute("class", "bar-hint");
+      hint.setAttribute("x", left - 14);
+      hint.setAttribute("y", y + barHeight / 2 + 12);
+      hint.setAttribute("text-anchor", "end");
+      hint.textContent = "Spent " + formatAmountCompact(item.amountValue);
+      panelState.svg.appendChild(hint);
+
+      const bar = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+      bar.setAttribute("class", "bar-mark");
+      bar.setAttribute("x", left);
+      bar.setAttribute("y", y);
+      bar.setAttribute("width", barWidth);
+      bar.setAttribute("height", barHeight);
+      bar.setAttribute("rx", "6");
+      bar.setAttribute("fill", colorFor(item.partner, 0.82));
+      appendTitle(
+        bar,
+        countryLabelForCode(item.partner) + " score " + formatScore(item.score) +
+        "\nAmount Spent: " + formatAmountExact(item.amountValue) +
+        "\n" + titleizeLabel(indicator) + ": " + formatMetricExact(item.metricValue, indicator)
+      );
+      wireInteractiveMark(
+        bar,
+        function () {
+          const rowsForHover = [
+            { label: "Chart", value: "Partner Score" },
+            { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+            { label: "Indicator", value: titleizeLabel(indicator) },
+            { label: "Partner", value: countryLabelForCode(item.partner) },
+            { label: "Score", value: formatScore(item.score) + " / 100" },
+            { label: "Amount Spent", value: formatAmountExact(item.amountValue) }
+          ];
+          if (indicator !== "amount") {
+            rowsForHover.push({ label: titleizeLabel(indicator), value: formatMetricExact(item.metricValue, indicator) });
+          }
+          return rowsForHover;
+        },
+        function () {
+          const rowsForClick = [
+            { label: "Chart", value: "Partner Score" },
+            { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+            { label: "Indicator", value: titleizeLabel(indicator) },
+            { label: "Partner", value: countryLabelForCode(item.partner) },
+            { label: "Score", value: formatScore(item.score) + " / 100" },
+            { label: "Trade Strength", value: formatPercent(item.tradeStrength) + " of largest partner" },
+            { label: "Efficiency", value: formatPercent(item.impactEfficiency) + " normalized" },
+            { label: "Amount Spent", value: formatAmountExact(item.amountValue) }
+          ];
+          if (indicator !== "amount") {
+            rowsForClick.push({ label: titleizeLabel(indicator), value: formatMetricExact(item.metricValue, indicator) });
+            rowsForClick.push({
+              label: titleizeLabel(indicator) + " per " + selectedCurrency(),
+              value: formatExact(convertIntensityPerCurrency(item.intensity))
+            });
+          }
+          return rowsForClick;
+        }
+      );
+      panelState.svg.appendChild(bar);
+
+      const value = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      value.setAttribute("class", "bar-value");
+      value.setAttribute("x", Math.min(left + barWidth + 10, width - 12));
+      value.setAttribute("y", y + barHeight / 2 - 2);
+      value.setAttribute("text-anchor", left + barWidth + 110 > width ? "end" : "start");
+      if (left + barWidth + 110 > width) {
+        value.setAttribute("x", width - 12);
+      }
+      value.textContent = "Score " + formatScore(item.score);
+      panelState.svg.appendChild(value);
+
+      const detail = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      detail.setAttribute("class", "bar-hint");
+      detail.setAttribute("x", Math.min(left + barWidth + 10, width - 12));
+      detail.setAttribute("y", y + barHeight / 2 + 12);
+      detail.setAttribute("text-anchor", left + barWidth + 110 > width ? "end" : "start");
+      if (left + barWidth + 110 > width) {
+        detail.setAttribute("x", width - 12);
+      }
+      detail.textContent = indicator === "amount"
+        ? formatAmountCompact(item.metricValue)
+        : titleizeLabel(indicator) + " " + formatMetricCompact(item.metricValue, indicator);
+      panelState.svg.appendChild(detail);
+    });
+  }
+
+  function renderTradeMapPanel(panelState) {
+    if (!sankeyData || !sankeyData.dataset) {
+      showEmpty(panelState, "Choose a country, flow, and year; data loads automatically.");
+      return;
+    }
+
+    if (!activeSelection || activeSelection.flow === "domestic") {
+      showEmpty(panelState, "Partner map is available for imports and exports.");
+      return;
+    }
+
+    const indicatorData = sankeyData.dataset.amount;
+    const rows = indicatorData && indicatorData.partner_breakdown
+      ? indicatorData.partner_breakdown.slice()
+      : [];
+
+    if (!rows.length) {
+      showEmpty(panelState, "No partner-country trade data available for this selection.");
+      return;
+    }
+
+    const mappedRows = [];
+    const unmappedRows = [];
+    rows.forEach(function (row) {
+      const point = partnerGeoCenters[row.partner];
+      if (point) {
+        mappedRows.push({
+          code: row.partner,
+          name: countryLabelForCode(row.partner),
+          lon: point.lon,
+          lat: point.lat,
+          rawValue: row.amountValue,
+          value: convertAmountValue(row.amountValue, activeSelection.year, selectedCurrency()),
+          share: 0,
+          isAggregate: Boolean(aggregatePartnerLabels[row.partner])
+        });
+      } else {
+        unmappedRows.push(row);
+      }
+    });
+
+    if (!mappedRows.length) {
+      showEmpty(panelState, "Partner countries are only available as regional aggregates for this selection.");
+      return;
+    }
+
+    const totalMappedValue = mappedRows.reduce(function (sum, row) {
+      return sum + row.rawValue;
+    }, 0);
+    mappedRows.forEach(function (row) {
+      row.share = totalMappedValue > 0 ? (row.rawValue / totalMappedValue) : 0;
+    });
+
+    const strongestMapped = mappedRows.slice().sort(function (left, right) {
+      return (right.rawValue - left.rawValue) || left.name.localeCompare(right.name);
+    })[0];
+    const topLabelNames = new Set(mappedRows.slice().sort(function (left, right) {
+      return (right.rawValue - left.rawValue) || left.name.localeCompare(right.name);
+    }).slice(0, 6).map(function (row) {
+      return row.name;
+    }));
+
+    panelState.title.textContent = panelState.config.title;
+    panelState.subtitle.textContent =
+      "Bubble positions approximate partner geography for the selected " + activeSelection.flow +
+      " view. Larger circles indicate more trade spend, and EXIO regional aggregates are shown as grouped regional points.";
+    setPanelStats(panelState, {
+      best: strongestMapped.name + " (" + formatAmountCompact(strongestMapped.rawValue) + ")",
+      mapped: mappedRows.filter(function (row) {
+        return !row.isAggregate;
+      }).length + " countries",
+      unmapped: mappedRows.filter(function (row) {
+        return row.isAggregate;
+      }).length
+        ? mappedRows.filter(function (row) {
+          return row.isAggregate;
+        }).slice(0, 3).map(function (row) {
+          return row.name;
+        }).join(", ")
+        : (unmappedRows.length
+        ? unmappedRows.slice(0, 3).map(function (row) {
+          return countryLabelForCode(row.partner);
+        }).join(", ")
+        : "None")
+    });
+
+    panelState.svg.innerHTML = "";
+    panelState.svg.style.display = "none";
+    if (panelState.mapHost) {
+      panelState.mapHost.hidden = true;
+    }
+    panelState.svg.style.display = "";
+    if (panelState.mapChart) {
+      panelState.mapChart.clear();
+    }
+
+    const width = panelState.viewBoxWidth || 760;
+    const height = panelState.viewBoxHeight || 520;
+    const bounds = {
+      left: 34,
+      top: 32,
+      width: width - 68,
+      height: height - 82
+    };
+    const maxValue = Math.max.apply(null, mappedRows.map(function (row) {
+      return row.rawValue;
+    }).concat([1]));
+
+    renderGeoBackdrop(panelState, bounds);
+
+    const legendX = bounds.left + 14;
+    const legendY = bounds.top + bounds.height + 26;
+    const legend = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    legend.setAttribute("x", legendX);
+    legend.setAttribute("y", legendY);
+    legend.setAttribute("fill", "#5a6676");
+    legend.setAttribute("font-size", "11");
+    legend.setAttribute("font-weight", "700");
+    legend.textContent = "Bubble size = amount spent (" + selectedCurrency() + ")";
+    panelState.svg.appendChild(legend);
+
+    mappedRows.forEach(function (row) {
+      const point = projectGeoPoint(row.lon, row.lat, bounds);
+      const radius = 6 + (Math.sqrt(row.rawValue / maxValue) * 26);
+
+      const bubble = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+      bubble.setAttribute("class", "bar-mark");
+      bubble.setAttribute("cx", point.x);
+      bubble.setAttribute("cy", point.y);
+      bubble.setAttribute("r", radius);
+      bubble.setAttribute("fill", row.isAggregate ? "rgba(245, 158, 11, 0.58)" : colorFor(row.code, 0.72));
+      bubble.setAttribute("stroke", row.isAggregate ? "rgba(180, 83, 9, 0.75)" : colorFor(row.code, 0.92));
+      bubble.setAttribute("stroke-width", row.isAggregate ? "2.2" : "1.2");
+      appendTitle(
+        bubble,
+        row.name +
+        "\nAmount Spent: " + formatAmountExact(row.rawValue) +
+        "\nMapped Share: " + formatPercent(row.share) +
+        "\nPartner Code: " + row.code
+      );
+      wireInteractiveMark(
+        bubble,
+        function () {
+          return [
+            { label: "Chart", value: "Trade Partner Map" },
+            { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+            { label: "Partner", value: row.name },
+            { label: "Amount Spent", value: formatAmountExact(row.rawValue) },
+            { label: "Mapped Share", value: formatPercent(row.share) },
+            { label: "Partner Code", value: row.code }
+          ];
+        },
+        function () {
+          return [
+            { label: "Chart", value: "Trade Partner Map" },
+            { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+            { label: "Partner", value: row.name },
+            { label: "Amount Spent", value: formatAmountExact(row.rawValue) },
+            { label: "Mapped Share", value: formatPercent(row.share) },
+            { label: "Partner Code", value: row.code },
+            { label: "Latitude", value: row.lat.toFixed(1) },
+            { label: "Longitude", value: row.lon.toFixed(1) }
+          ];
+        }
+      );
+      panelState.svg.appendChild(bubble);
+
+      if (topLabelNames.has(row.name)) {
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", point.x);
+        label.setAttribute("y", point.y - radius - 7);
+        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("fill", "#17324d");
+        label.setAttribute("font-size", "11");
+        label.setAttribute("font-weight", "700");
+        label.textContent = row.name;
+        panelState.svg.appendChild(label);
+      }
     });
   }
 
@@ -2148,6 +2911,16 @@
       return;
     }
 
+    if (panelState.config.kind === "partner-score") {
+      renderPartnerScorePanel(panelState);
+      return;
+    }
+
+    if (panelState.config.kind === "trade-map") {
+      renderTradeMapPanel(panelState);
+      return;
+    }
+
     renderResourceMixPanel(panelState);
   }
 
@@ -2377,11 +3150,23 @@
 
   if (typeof ResizeObserver === "function") {
     const resizeObserver = new ResizeObserver(function () {
+      panels.forEach(function (panelState) {
+        if (panelState.mapChart) {
+          panelState.mapChart.resize();
+        }
+      });
       notifyHostHeight();
     });
     resizeObserver.observe(document.body);
   } else {
-    window.addEventListener("resize", notifyHostHeight);
+    window.addEventListener("resize", function () {
+      panels.forEach(function (panelState) {
+        if (panelState.mapChart) {
+          panelState.mapChart.resize();
+        }
+      });
+      notifyHostHeight();
+    });
   }
 
   document.addEventListener("click", function (event) {
