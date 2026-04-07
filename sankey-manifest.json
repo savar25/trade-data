@@ -1,0 +1,190 @@
+{
+  "countries": [
+    "AU",
+    "BR",
+    "CA",
+    "CN",
+    "DE",
+    "FR",
+    "GB",
+    "IN",
+    "IT",
+    "JP",
+    "KR",
+    "RU",
+    "US",
+    "WM"
+  ],
+  "defaultSelection": {
+    "country": "US",
+    "flow": "domestic",
+    "year": "2022"
+  },
+  "flowsByCountryYear": {
+    "AU|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "BR|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "CA|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "CN|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "CN|2022": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "DE|2019": [
+      "domestic",
+      "imports"
+    ],
+    "DE|2022": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "FR|2019": [
+      "domestic",
+      "imports"
+    ],
+    "GB|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "IN|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "IN|2022": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "IT|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "JP|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "KR|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "RU|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "RU|2022": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "US|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "US|2020": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "US|2021": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "US|2022": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "WM|2019": [
+      "domestic",
+      "imports",
+      "exports"
+    ],
+    "WM|2022": [
+      "domestic",
+      "imports",
+      "exports"
+    ]
+  },
+  "supportedFlows": [
+    "domestic",
+    "imports",
+    "exports"
+  ],
+  "yearsByCountry": {
+    "AU": [
+      "2019"
+    ],
+    "BR": [
+      "2019"
+    ],
+    "CA": [
+      "2019"
+    ],
+    "CN": [
+      "2019",
+      "2022"
+    ],
+    "DE": [
+      "2019",
+      "2022"
+    ],
+    "FR": [
+      "2019"
+    ],
+    "GB": [
+      "2019"
+    ],
+    "IN": [
+      "2019",
+      "2022"
+    ],
+    "IT": [
+      "2019"
+    ],
+    "JP": [
+      "2019"
+    ],
+    "KR": [
+      "2019"
+    ],
+    "RU": [
+      "2019",
+      "2022"
+    ],
+    "US": [
+      "2019",
+      "2020",
+      "2021",
+      "2022"
+    ],
+    "WM": [
+      "2019",
+      "2022"
+    ]
+  }
+}

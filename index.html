@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Worldwide Trade Impact And Resource Dashboard</title>
 <link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main/css/base.css" />
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  crossorigin=""
+>
 <script type="text/javascript" src="https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main/js/localsite.js?showheader=true&showsearch=true&showfilters=true"></script>
 <style>
   body {
@@ -219,6 +224,108 @@
     width: 100%;
     height: 100%;
   }
+  .map-host .leaflet-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 6px;
+    font: inherit;
+    background:
+      radial-gradient(circle at top, rgba(223, 239, 250, 0.8), rgba(234, 243, 248, 0.65) 45%, rgba(248, 250, 252, 0.95) 100%);
+  }
+  .map-host .leaflet-control-attribution {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(4px);
+  }
+  .map-host .leaflet-control-zoom a {
+    color: #223242;
+    font-weight: 700;
+  }
+  .map-host .leaflet-partner-tooltip {
+    padding: 0.45em 0.6em;
+    border: 1px solid rgba(35, 50, 66, 0.16);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+    color: #223242;
+    font-size: 0.84rem;
+    font-weight: 700;
+  }
+  .map-host .leaflet-partner-label {
+    padding: 0.18em 0.38em;
+    border: 1px solid rgba(208, 219, 230, 0.94);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+    color: #17324d;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .map-host .leaflet-partner-label:before,
+  .map-host .leaflet-partner-tooltip:before {
+    display: none;
+  }
+  .map-host .leaflet-partner-popup .leaflet-popup-content-wrapper {
+    border-radius: 12px;
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.16);
+  }
+  .map-host .leaflet-partner-popup .leaflet-popup-content {
+    margin: 0;
+    min-width: 230px;
+  }
+  .map-popup {
+    padding: 0.9em 1em;
+  }
+  .map-popup h3 {
+    margin: 0 0 0.7em;
+    color: #223242;
+    font-size: 0.98rem;
+    font-weight: 800;
+  }
+  .map-popup dl {
+    display: grid;
+    grid-template-columns: minmax(84px, auto) 1fr;
+    gap: 0.45em 0.75em;
+    margin: 0;
+  }
+  .map-popup dt {
+    color: #677382;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .map-popup dd {
+    margin: 0;
+    color: #223242;
+    font-size: 0.86rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+  .leaflet-map-legend {
+    padding: 0.7em 0.8em;
+    border: 1px solid rgba(35, 50, 66, 0.12);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+    color: #223242;
+    line-height: 1.45;
+    backdrop-filter: blur(6px);
+  }
+  .leaflet-map-legend strong {
+    display: block;
+    margin-bottom: 0.25em;
+    font-size: 0.74rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #516071;
+  }
+  .leaflet-map-legend span {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
   .tooltip {
     position: fixed;
     z-index: 1000;
@@ -428,7 +535,8 @@
   <div id="sankey-attribution">
     <strong>Data source:</strong>
     <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
-    &middot; repository paths under <code>year/</code> and <code>sankey-datasets/</code>
+    &middot; impact data loaded directly from <code>year/[year]/[country]/[flow]/trade_impact.csv</code>
+    &middot; lightweight dataset inventory from <code>sankey-manifest.json</code>
     &middot; industry labels from <code>year/[year]/industry.csv</code>
     &middot; panel rendering shared with <a href="./bea-dashboard/sankey.html">bea-dashboard/sankey.html</a>
   </div>
@@ -440,13 +548,16 @@
 
 <script>
 window.TRADE_DASHBOARD_CONFIG = {
-  datasetBasePath: "./sankey-datasets",
   yearBasePath: "./year",
   rawYearBasePath: "https://raw.githubusercontent.com/savar25/trade-data/main/year"
 };
 </script>
 <script src="./sankey-data.js"></script>
 <script src="./trade-resource-data.js"></script>
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  crossorigin=""
+></script>
 <script src="./chart.js"></script>
 </body>
 </html>

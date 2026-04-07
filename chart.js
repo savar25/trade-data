@@ -17,6 +17,24 @@
   const clickTooltip = document.getElementById("click-tooltip");
   const pageRoot = document.documentElement;
   const runtimeConfig = window.TRADE_DASHBOARD_CONFIG || {};
+  const fallbackIndicatorColumns = [
+    "air_emissions",
+    "employment",
+    "energy",
+    "land",
+    "material",
+    "water",
+    "CO2_total",
+    "CH4_total",
+    "N2O_total",
+    "NOX_total",
+    "Water_total",
+    "Employment_total",
+    "Energy_total",
+    "Land_total",
+    "impact_intensity"
+  ];
+  const fallbackDefaultIndicators = ["CO2_total", "Employment_total"];
 
   if (!manifest || !chartGrid || !countrySelect || !yearSelect || !flowSelect || !hoverTooltip || !clickTooltip) {
     return;
@@ -267,6 +285,13 @@
     WL: { lon: -70.0, lat: 12.0 },
     WM: { lon: 45.0, lat: 24.0 },
     ZA: { lon: 24.0, lat: -29.0 }
+  };
+  const aggregateRegionRadiusMeters = {
+    WA: 2300000,
+    WE: 1800000,
+    WF: 2300000,
+    WL: 2600000,
+    WM: 1700000
   };
 
   function normalizeBasePath(path) {
@@ -1677,6 +1702,24 @@
     return element;
   }
 
+  function escapeHtml(value) {
+    return String(value == null ? "" : value).replace(/[&<>"']/g, function (char) {
+      if (char === "&") {
+        return "&amp;";
+      }
+      if (char === "<") {
+        return "&lt;";
+      }
+      if (char === ">") {
+        return "&gt;";
+      }
+      if (char === '"') {
+        return "&quot;";
+      }
+      return "&#39;";
+    });
+  }
+
   function appendTitle(node, text) {
     const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
     title.textContent = text;
@@ -1765,13 +1808,21 @@
   }
 
   function indicatorColumns() {
-    return sankeyData && sankeyData.indicatorColumns
-      ? sankeyData.indicatorColumns
-      : manifest.indicatorColumns;
+    if (sankeyData && Array.isArray(sankeyData.indicatorColumns) && sankeyData.indicatorColumns.length) {
+      return sankeyData.indicatorColumns;
+    }
+    if (manifest && Array.isArray(manifest.indicatorColumns) && manifest.indicatorColumns.length) {
+      return manifest.indicatorColumns;
+    }
+    return fallbackIndicatorColumns.slice();
   }
 
   function defaultIndicators() {
-    const defaults = sankeyData && sankeyData.defaults ? sankeyData.defaults : manifest.defaults;
+    const defaults = sankeyData && Array.isArray(sankeyData.defaults) && sankeyData.defaults.length
+      ? sankeyData.defaults
+      : (manifest && Array.isArray(manifest.defaults) && manifest.defaults.length
+          ? manifest.defaults
+          : fallbackDefaultIndicators);
     return defaults && defaults.length ? defaults.slice(0, 2) : indicatorColumns().slice(0, 2);
   }
 
@@ -1852,6 +1903,11 @@
       svg: svg,
       mapHost: mapHost,
       mapChart: null,
+      mapBubbleLayer: null,
+      mapLabelLayer: null,
+      mapRegionLayer: null,
+      mapLegendControl: null,
+      mapLegendElement: null,
       statValues: statValues,
       viewBoxWidth: viewBoxWidth,
       viewBoxHeight: viewBoxHeight
@@ -1884,9 +1940,7 @@
     if (panelState.mapHost) {
       panelState.mapHost.hidden = true;
     }
-    if (panelState.mapChart) {
-      panelState.mapChart.clear();
-    }
+    clearPanelMap(panelState);
 
     const empty = document.createElementNS("http://www.w3.org/2000/svg", "text");
     empty.setAttribute("x", "380");
@@ -1895,6 +1949,104 @@
     empty.setAttribute("fill", "#59606d");
     empty.textContent = message;
     panelState.svg.appendChild(empty);
+  }
+
+  function clearPanelMap(panelState) {
+    if (!panelState) {
+      return;
+    }
+    if (panelState.mapBubbleLayer && typeof panelState.mapBubbleLayer.clearLayers === "function") {
+      panelState.mapBubbleLayer.clearLayers();
+    }
+    if (panelState.mapLabelLayer && typeof panelState.mapLabelLayer.clearLayers === "function") {
+      panelState.mapLabelLayer.clearLayers();
+    }
+    if (panelState.mapRegionLayer && typeof panelState.mapRegionLayer.clearLayers === "function") {
+      panelState.mapRegionLayer.clearLayers();
+    }
+    if (panelState.mapChart && typeof panelState.mapChart.closePopup === "function") {
+      panelState.mapChart.closePopup();
+    }
+  }
+
+  function resizePanelMap(panelState) {
+    if (!panelState || !panelState.mapChart) {
+      return;
+    }
+    if (typeof panelState.mapChart.invalidateSize === "function") {
+      panelState.mapChart.invalidateSize({
+        pan: false,
+        animate: false
+      });
+      return;
+    }
+    if (typeof panelState.mapChart.resize === "function") {
+      panelState.mapChart.resize();
+    }
+  }
+
+  function leafletPopupHtml(title, rows) {
+    const body = (rows || []).map(function (row) {
+      return (
+        "<dt>" + escapeHtml(row.label) + "</dt>" +
+        "<dd>" + escapeHtml(row.value) + "</dd>"
+      );
+    }).join("");
+
+    return (
+      '<div class="map-popup">' +
+      "<h3>" + escapeHtml(title) + "</h3>" +
+      "<dl>" + body + "</dl>" +
+      "</div>"
+    );
+  }
+
+  function ensureTradeMap(panelState) {
+    if (!panelState || !panelState.mapHost || typeof window.L === "undefined") {
+      return null;
+    }
+
+    if (!panelState.mapChart) {
+      const map = window.L.map(panelState.mapHost, {
+        zoomControl: true,
+        scrollWheelZoom: true,
+        boxZoom: true,
+        doubleClickZoom: true,
+        dragging: true,
+        worldCopyJump: true,
+        preferCanvas: true,
+        zoomSnap: 0.25,
+        minZoom: 1.25,
+        maxZoom: 8
+      });
+
+      window.L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        subdomains: "abcd",
+        maxZoom: 20,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+      }).addTo(map);
+
+      panelState.mapChart = map;
+      panelState.mapRegionLayer = window.L.layerGroup().addTo(map);
+      panelState.mapBubbleLayer = window.L.layerGroup().addTo(map);
+      panelState.mapLabelLayer = window.L.layerGroup().addTo(map);
+
+      const legendControl = window.L.control({ position: "bottomleft" });
+      legendControl.onAdd = function () {
+        const legend = window.L.DomUtil.create("div", "leaflet-map-legend");
+        legend.innerHTML =
+          "<strong>Map Guide</strong>" +
+          "<span>Zoom in to separate nearby trade partners.</span>" +
+          "<span>Bubble size shows amount spent. Orange halos mark regional aggregates.</span>";
+        return legend;
+      };
+      legendControl.addTo(map);
+
+      panelState.mapLegendControl = legendControl;
+      panelState.mapLegendElement = legendControl.getContainer();
+    }
+
+    return panelState.mapChart;
   }
 
   function distributeNodes(nodes, startY, endY, gap, minHeight) {
@@ -2540,98 +2692,136 @@
     });
 
     panelState.svg.innerHTML = "";
-    panelState.svg.style.display = "none";
-    if (panelState.mapHost) {
-      panelState.mapHost.hidden = true;
-    }
-    panelState.svg.style.display = "";
-    if (panelState.mapChart) {
-      panelState.mapChart.clear();
+    if (!panelState.mapHost || typeof window.L === "undefined") {
+      showEmpty(panelState, "Interactive map tiles are unavailable, so the partner map cannot render.");
+      return;
     }
 
-    const width = panelState.viewBoxWidth || 760;
-    const height = panelState.viewBoxHeight || 520;
-    const bounds = {
-      left: 34,
-      top: 32,
-      width: width - 68,
-      height: height - 82
-    };
+    panelState.svg.style.display = "none";
+    panelState.mapHost.hidden = false;
+
+    const map = ensureTradeMap(panelState);
+    if (!map) {
+      showEmpty(panelState, "Interactive map tiles are unavailable, so the partner map cannot render.");
+      return;
+    }
+
+    clearPanelMap(panelState);
+
     const maxValue = Math.max.apply(null, mappedRows.map(function (row) {
       return row.rawValue;
     }).concat([1]));
+    const latLngs = [];
 
-    renderGeoBackdrop(panelState, bounds);
-
-    const legendX = bounds.left + 14;
-    const legendY = bounds.top + bounds.height + 26;
-    const legend = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    legend.setAttribute("x", legendX);
-    legend.setAttribute("y", legendY);
-    legend.setAttribute("fill", "#5a6676");
-    legend.setAttribute("font-size", "11");
-    legend.setAttribute("font-weight", "700");
-    legend.textContent = "Bubble size = amount spent (" + selectedCurrency() + ")";
-    panelState.svg.appendChild(legend);
+    if (panelState.mapLegendElement) {
+      panelState.mapLegendElement.innerHTML =
+        "<strong>Map Guide</strong>" +
+        "<span>Bubble size = amount spent in " + escapeHtml(selectedCurrency()) + ".</span>" +
+        "<span>Zoom in to separate nearby bubbles. Orange halos mark EXIO regional aggregates.</span>";
+    }
 
     mappedRows.forEach(function (row) {
-      const point = projectGeoPoint(row.lon, row.lat, bounds);
-      const radius = 6 + (Math.sqrt(row.rawValue / maxValue) * 26);
+      const latLng = [row.lat, row.lon];
+      latLngs.push(latLng);
 
-      const bubble = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      bubble.setAttribute("class", "bar-mark");
-      bubble.setAttribute("cx", point.x);
-      bubble.setAttribute("cy", point.y);
-      bubble.setAttribute("r", radius);
-      bubble.setAttribute("fill", row.isAggregate ? "rgba(245, 158, 11, 0.58)" : colorFor(row.code, 0.72));
-      bubble.setAttribute("stroke", row.isAggregate ? "rgba(180, 83, 9, 0.75)" : colorFor(row.code, 0.92));
-      bubble.setAttribute("stroke-width", row.isAggregate ? "2.2" : "1.2");
-      appendTitle(
-        bubble,
-        row.name +
-        "\nAmount Spent: " + formatAmountExact(row.rawValue) +
-        "\nMapped Share: " + formatPercent(row.share) +
-        "\nPartner Code: " + row.code
-      );
-      wireInteractiveMark(
-        bubble,
-        function () {
-          return [
-            { label: "Chart", value: "Trade Partner Map" },
-            { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
-            { label: "Partner", value: row.name },
-            { label: "Amount Spent", value: formatAmountExact(row.rawValue) },
-            { label: "Mapped Share", value: formatPercent(row.share) },
-            { label: "Partner Code", value: row.code }
-          ];
-        },
-        function () {
-          return [
-            { label: "Chart", value: "Trade Partner Map" },
-            { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
-            { label: "Partner", value: row.name },
-            { label: "Amount Spent", value: formatAmountExact(row.rawValue) },
-            { label: "Mapped Share", value: formatPercent(row.share) },
-            { label: "Partner Code", value: row.code },
-            { label: "Latitude", value: row.lat.toFixed(1) },
-            { label: "Longitude", value: row.lon.toFixed(1) }
-          ];
+      if (row.isAggregate && panelState.mapRegionLayer) {
+        const regionRadius = Math.max(
+          650000,
+          Math.round((aggregateRegionRadiusMeters[row.code] || 1400000) * (0.7 + row.share))
+        );
+        window.L.circle(latLng, {
+          radius: regionRadius,
+          color: "rgba(180, 83, 9, 0.6)",
+          weight: 1.5,
+          dashArray: "8 8",
+          fillColor: "rgba(245, 158, 11, 0.15)",
+          fillOpacity: 0.2
+        }).addTo(panelState.mapRegionLayer);
+      }
+
+      const marker = window.L.circleMarker(latLng, {
+        radius: 7 + (Math.sqrt(row.rawValue / maxValue) * 22),
+        color: row.isAggregate ? "rgba(180, 83, 9, 0.85)" : colorFor(row.code, 0.95),
+        weight: row.isAggregate ? 2.4 : 1.4,
+        fillColor: row.isAggregate ? "rgba(245, 158, 11, 0.65)" : colorFor(row.code, 0.72),
+        fillOpacity: row.isAggregate ? 0.78 : 0.66
+      }).addTo(panelState.mapBubbleLayer);
+
+      marker.bindTooltip(
+        row.name + " • " + formatAmountExact(row.rawValue),
+        {
+          sticky: true,
+          direction: "top",
+          offset: [0, -6],
+          className: "leaflet-partner-tooltip",
+          opacity: 1
         }
       );
-      panelState.svg.appendChild(bubble);
+      marker.bindPopup(
+        leafletPopupHtml(row.name, [
+          { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
+          { label: "Amount Spent", value: formatAmountExact(row.rawValue) },
+          { label: "Mapped Share", value: formatPercent(row.share) },
+          { label: "Partner Code", value: row.code },
+          { label: "Latitude", value: row.lat.toFixed(1) },
+          { label: "Longitude", value: row.lon.toFixed(1) }
+        ]),
+        {
+          className: "leaflet-partner-popup",
+          maxWidth: 320
+        }
+      );
+      marker.on("mouseover", function () {
+        if (typeof marker.bringToFront === "function") {
+          marker.bringToFront();
+        }
+      });
 
       if (topLabelNames.has(row.name)) {
-        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        label.setAttribute("x", point.x);
-        label.setAttribute("y", point.y - radius - 7);
-        label.setAttribute("text-anchor", "middle");
-        label.setAttribute("fill", "#17324d");
-        label.setAttribute("font-size", "11");
-        label.setAttribute("font-weight", "700");
-        label.textContent = row.name;
-        panelState.svg.appendChild(label);
+        window.L.marker(latLng, {
+          interactive: false,
+          icon: window.L.divIcon({
+            className: "",
+            html: '<div class="leaflet-partner-label">' + escapeHtml(row.name) + "</div>",
+            iconSize: null
+          })
+        }).addTo(panelState.mapLabelLayer);
       }
     });
+
+    const homePoint = partnerGeoCenters[activeSelection.country];
+    if (homePoint && panelState.mapLabelLayer) {
+      const homeLatLng = [homePoint.lat, homePoint.lon];
+      latLngs.push(homeLatLng);
+      window.L.circleMarker(homeLatLng, {
+        radius: 6,
+        color: "#0f172a",
+        weight: 2.4,
+        fillColor: "#ffffff",
+        fillOpacity: 1
+      }).addTo(panelState.mapLabelLayer).bindTooltip(
+        activeSelection.country + " selected",
+        {
+          direction: "right",
+          offset: [10, 0],
+          className: "leaflet-partner-label",
+          opacity: 1
+        }
+      );
+    }
+
+    if (latLngs.length === 1) {
+      map.setView(latLngs[0], 3.25);
+    } else if (latLngs.length > 1) {
+      map.fitBounds(window.L.latLngBounds(latLngs), {
+        padding: [26, 26],
+        maxZoom: 4.75
+      });
+    }
+
+    setTimeout(function () {
+      resizePanelMap(panelState);
+    }, 0);
   }
 
   function getResourceSelection() {
@@ -3152,7 +3342,7 @@
     const resizeObserver = new ResizeObserver(function () {
       panels.forEach(function (panelState) {
         if (panelState.mapChart) {
-          panelState.mapChart.resize();
+          resizePanelMap(panelState);
         }
       });
       notifyHostHeight();
@@ -3162,7 +3352,7 @@
     window.addEventListener("resize", function () {
       panels.forEach(function (panelState) {
         if (panelState.mapChart) {
-          panelState.mapChart.resize();
+          resizePanelMap(panelState);
         }
       });
       notifyHostHeight();
@@ -3190,11 +3380,16 @@
   notifyHostHeight();
 
   (async function loadHashSelections() {
-    const uniqueYears = Array.from(new Set(hashSelections.map(function (h) { return h.year; })));
-    await loadIndustryNamesForYears(uniqueYears);
-    for (let i = 0; i < hashSelections.length; i += 1) {
-      const sel = hashSelections[i];
-      await loadDataset(sel.country, sel.year, sel.flow, sel.topn);
+    try {
+      const uniqueYears = Array.from(new Set(hashSelections.map(function (h) { return h.year; })));
+      await loadIndustryNamesForYears(uniqueYears);
+      for (let i = 0; i < hashSelections.length; i += 1) {
+        const sel = hashSelections[i];
+        await loadDataset(sel.country, sel.year, sel.flow, sel.topn);
+      }
+    } catch (error) {
+      console.error("Dashboard bootstrap failed:", error);
+      updateStatus("Dashboard startup failed. Check the browser console for details.", true);
     }
   }());
 }());
