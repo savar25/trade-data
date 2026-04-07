@@ -9,9 +9,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <style>
   .content.contentpadding {
-    width: min(100%, calc(100vw - 32px));
+    width: 100%;
     max-width: none !important;
     margin: 0 auto;
+    padding: 0 10px;
+    box-sizing: border-box;
   }
   .sankey-page-header {
     margin: 1em 0 0.25em;
@@ -24,6 +26,46 @@
     margin: 0 0 1em;
     color: #555;
     font-size: 0.95em;
+  }
+  .sankey-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  #score-help-button {
+    padding: 0.45em 0.8em;
+    border: 1px solid #cfd6df;
+    border-radius: 999px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #score-help-button:hover {
+    background: #f8fafc;
+  }
+  #score-help-panel {
+    margin: 0 0 1em;
+    padding: 0.85em 1em;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  #score-help-panel[hidden] {
+    display: none;
+  }
+  #score-help-panel p {
+    margin: 0 0 0.45em;
+  }
+  #score-help-panel p:last-child {
+    margin-bottom: 0;
   }
   #sankey-controls {
     display: flex;
@@ -69,6 +111,37 @@
   #sankey-chart {
     width: 100%;
     height: 720px;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    border: 1px solid #e8eaed;
+    border-radius: 4px;
+    background: #fff;
+  }
+  #partner-chart-panel {
+    margin-top: 1.25em;
+  }
+  #partner-chart-panel[hidden] {
+    display: none;
+  }
+  #partner-chart-header {
+    margin: 0 0 0.35em;
+    font-size: 1.1em;
+  }
+  #partner-chart-note {
+    margin: 0 0 0.75em;
+    color: #555;
+    font-size: 0.92em;
+  }
+  #partner-chart-status {
+    font-size: 0.88em;
+    color: #666;
+    font-style: italic;
+    margin: 0 0 0.5em;
+    min-height: 1.3em;
+  }
+  #partner-chart {
+    width: 100%;
+    height: 430px;
     border: 1px solid #e8eaed;
     border-radius: 4px;
     background: #fff;
@@ -104,11 +177,24 @@
 <div class="content contentpadding">
 
   <div class="sankey-page-header">
-    <h2>Exiobase Industry Trade Flow Sankey</h2>
-    <p>
-      Global industry-to-industry embodied environmental flows with the same country/year/flow selection used by the main dashboard &middot;
-      <a href="https://exiobase.eu" target="_blank" rel="noopener">EXIOBASE 3</a>
-    </p>
+    <div class="sankey-header-row">
+      <div>
+        <h2>Exiobase Industry Trade Flow Sankey</h2>
+        <p>
+          Global industry-to-industry embodied environmental flows with the same country/year/flow selection used by the main dashboard &middot;
+          <a href="https://exiobase.eu" target="_blank" rel="noopener">EXIOBASE 3</a>
+        </p>
+      </div>
+      <button id="score-help-button" type="button" aria-expanded="false" aria-controls="score-help-panel">Score Help</button>
+    </div>
+  </div>
+
+  <div id="score-help-panel" hidden>
+    <p><strong>How the partner-country score works:</strong> the score ranks import/export partner countries from best to worst on a 0 to 100 scale.</p>
+    <p><strong>Amount Spent:</strong> score = 100 x partner trade value / largest partner trade value.</p>
+    <p><strong>CO&#x2082; Emissions and Water Use:</strong> score = 100 x (0.6 x trade strength + 0.4 x lower impact per amount-spent efficiency).</p>
+    <p><strong>Employment:</strong> score = 100 x (0.6 x trade strength + 0.4 x higher jobs per amount-spent efficiency).</p>
+    <p><strong>Trade strength</strong> is the partner&rsquo;s trade value relative to the largest partner. <strong>Efficiency</strong> compares indicator per amount spent across the visible partner-country set.</p>
   </div>
 
   <div id="sankey-controls">
@@ -130,18 +216,38 @@
         <option value="CO2_total">CO&#x2082; Emissions</option>
         <option value="Water_total">Water Use</option>
         <option value="Employment_total">Employment</option>
-        <option value="amount">Trade Amount (USD)</option>
+        <option value="amount">Amount Spent</option>
+      </select>
+    </label>
+    <label id="currency-select-label">
+      Currency:
+      <select id="currency-select"></select>
+    </label>
+    <label>
+      Industry labels:
+      <select id="industry-label-select">
+        <option value="title">Title</option>
+        <option value="short">Short name</option>
+        <option value="verbose">Complete verbose name</option>
       </select>
     </label>
     <label>
       Top flows:
-      <input type="range" id="topn-slider" min="5" max="50" step="1" value="20">
-      <span id="topn-label">20</span>
+      <input type="range" id="topn-slider" min="5" max="50" step="1" value="15">
+      <span id="topn-label">15</span>
     </label>
   </div>
 
   <div id="sankey-status">Loading data&hellip;</div>
   <div id="sankey-chart"></div>
+  <div id="partner-chart-panel" hidden>
+    <h3 id="partner-chart-header">Top Partner Countries</h3>
+    <p id="partner-chart-note">
+      Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.
+    </p>
+    <div id="partner-chart-status"></div>
+    <div id="partner-chart"></div>
+  </div>
 
   <div id="sankey-attribution">
     <strong>Data source:</strong>
@@ -149,12 +255,13 @@
     (multi-regional input-output database, 44 countries, 163 sectors) &middot;
     <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
     &middot; labels from <code>year/[year]/industry.csv</code>
+    &middot; currency rates from <code>concordance/eur_annual_rates.csv</code>
     &middot; repo CSV: <code id="csv-path-label">year/.../trade_impact.csv</code>
   </div>
 
 </div><!-- end .content.contentpadding -->
 
-<script src="../sankey-data.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/savar25/trade-data@main/sankey-data.js"></script>
 <script>
 // ---------------------------------------------------------------------------
 // Configuration
@@ -167,10 +274,52 @@ const manifest = window.TRADE_SANKEY_MANIFEST || {
 };
 
 const METRICS = {
-  CO2_total:        { label: "CO\u2082 Emissions",  unit: "Gt CO\u2082", scale: 1e12 },
-  Water_total:      { label: "Water Use",           unit: "Gm\u00B3",    scale: 1e9  },
-  Employment_total: { label: "Employment",          unit: "M jobs",      scale: 1e6  },
-  amount:           { label: "Trade Amount",        unit: "M USD",       scale: 1e6  }
+  CO2_total:        { label: "CO\u2082 Emissions",  unit: "Gt CO\u2082", scale: 1e12, sourceKeys: ["CO2_total"], scoreDirection: "lower" },
+  Water_total:      { label: "Water Use",           unit: "Gm\u00B3",    scale: 1e9,  sourceKeys: ["Water_total"], scoreDirection: "lower" },
+  Employment_total: { label: "Employment",          unit: "M jobs",      scale: 1e6,  sourceKeys: ["Employment_total", "Employment_people_total"], scoreDirection: "higher" },
+  amount:           { label: "Amount Spent",        unit: "M EUR",       scale: 1,    sourceKeys: ["amount"], scoreDirection: "higher" }
+};
+
+const INDUSTRY_LABEL_MODES = {
+  short: true,
+  title: true,
+  verbose: true
+};
+
+const CURRENCY_NAMES = {
+  EUR: "Euro",
+  USD: "US Dollar",
+  JPY: "Japanese Yen",
+  GBP: "British Pound",
+  CHF: "Swiss Franc",
+  SEK: "Swedish Krona",
+  NOK: "Norwegian Krone",
+  DKK: "Danish Krone",
+  CZK: "Czech Koruna",
+  PLN: "Polish Zloty",
+  HUF: "Hungarian Forint",
+  RON: "Romanian Leu",
+  HRK: "Croatian Kuna",
+  BGN: "Bulgarian Lev",
+  TRY: "Turkish Lira",
+  AUD: "Australian Dollar",
+  CAD: "Canadian Dollar",
+  HKD: "Hong Kong Dollar",
+  SGD: "Singapore Dollar",
+  KRW: "South Korean Won",
+  ZAR: "South African Rand",
+  MXN: "Mexican Peso",
+  INR: "Indian Rupee",
+  CNY: "Chinese Renminbi",
+  BRL: "Brazilian Real",
+  IDR: "Indonesian Rupiah",
+  ILS: "Israeli New Shekel",
+  MYR: "Malaysian Ringgit",
+  PHP: "Philippine Peso",
+  THB: "Thai Baht",
+  ISK: "Icelandic Krona",
+  NZD: "New Zealand Dollar",
+  RUB: "Russian Rouble"
 };
 
 const SECTOR_NAMES = {
@@ -267,13 +416,27 @@ const countrySelect = document.getElementById("country-select");
 const yearSelect = document.getElementById("year-select");
 const flowSelect = document.getElementById("flow-select");
 const metricSelect = document.getElementById("metric-select");
+const currencySelect = document.getElementById("currency-select");
+const currencySelectLabel = document.getElementById("currency-select-label");
+const industryLabelSelect = document.getElementById("industry-label-select");
 const topnSlider = document.getElementById("topn-slider");
 const topnLabel = document.getElementById("topn-label");
 const csvPathLabel = document.getElementById("csv-path-label");
+const scoreHelpButton = document.getElementById("score-help-button");
+const scoreHelpPanel = document.getElementById("score-help-panel");
 const chartDom = document.getElementById("sankey-chart");
 const chart = echarts.init(chartDom);
+const partnerChartPanel = document.getElementById("partner-chart-panel");
+const partnerChartNote = document.getElementById("partner-chart-note");
+const partnerChartStatus = document.getElementById("partner-chart-status");
+const partnerChartDom = document.getElementById("partner-chart");
+const partnerChart = echarts.init(partnerChartDom);
 const csvCache = {};
 const industryNameByYear = {};
+const currencyRatesByYear = {};
+
+let availableCurrencyCodes = ["EUR"];
+let currencyRatesPromise = null;
 
 let rawData = null;
 let activeSelection = null;
@@ -290,18 +453,42 @@ function parseNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function sectorLabel(code) {
+function resolveIndustryNames(code) {
   const key = normalizeCode(code);
   const yearMap = activeSelection && activeSelection.year
     ? industryNameByYear[normalizeCode(activeSelection.year)]
     : null;
-  return (yearMap && yearMap[key]) || SECTOR_NAMES[key] || key;
+  const verbose = (yearMap && yearMap[key]) || key;
+  const title = SECTOR_NAMES[key] || String(verbose || "")
+    .replace(/\s*\([^)]*\)\s*$/g, "")
+    .split(";")[0]
+    .trim() || key;
+  return {
+    code: key,
+    title: title || key,
+    verbose: verbose || title || key
+  };
+}
+
+function sectorLabel(code) {
+  const names = resolveIndustryNames(code);
+  const mode = activeSelection && activeSelection.industryLabelMode
+    ? activeSelection.industryLabelMode
+    : "title";
+
+  if (mode === "short") {
+    return names.code;
+  }
+  if (mode === "verbose") {
+    return names.verbose;
+  }
+  return names.title;
 }
 
 function displayIndustryName(code) {
-  const key = normalizeCode(code);
-  const label = sectorLabel(key);
-  return label !== key ? label + " (" + key + ")" : key;
+  const names = resolveIndustryNames(code);
+  const label = sectorLabel(code);
+  return label !== names.code ? label + " (" + names.code + ")" : names.code;
 }
 
 function wrapLabel(text, maxChars) {
@@ -334,7 +521,6 @@ async function loadIndustryNamesForYear(year) {
   }
 
   const response = await fetchTextWithFallback([
-    "../year/" + key + "/industry.csv",
     "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + key + "/industry.csv"
   ]);
   if (!response || !response.text) {
@@ -353,22 +539,200 @@ async function loadIndustryNamesForYear(year) {
   industryNameByYear[key] = yearMap;
 }
 
+async function loadCurrencyRates() {
+  if (currencyRatesPromise) {
+    return currencyRatesPromise;
+  }
+
+  currencyRatesPromise = (async function () {
+    const response = await fetchTextWithFallback([
+      "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/eur_annual_rates.csv"
+    ]);
+    if (!response || !response.text) {
+      return;
+    }
+
+    const rows = d3.csvParse(response.text);
+    const columns = (rows.columns || []).filter(function (column) {
+      return column !== "Year";
+    });
+    availableCurrencyCodes = ["EUR"].concat(columns);
+
+    rows.forEach(function (row) {
+      const year = normalizeCode(row.Year);
+      if (!year) {
+        return;
+      }
+      const yearRates = { EUR: 1 };
+      columns.forEach(function (currencyCode) {
+        const rate = parseNumber(row[currencyCode]);
+        if (rate > 0) {
+          yearRates[currencyCode] = rate;
+        }
+      });
+      currencyRatesByYear[year] = yearRates;
+    });
+  })().catch(function () {
+    availableCurrencyCodes = ["EUR"];
+  });
+
+  return currencyRatesPromise;
+}
+
+function currencyName(code) {
+  const key = normalizeCode(code);
+  return CURRENCY_NAMES[key] || key;
+}
+
+function currenciesForYear(year) {
+  const yearRates = currencyRatesByYear[normalizeCode(year)] || { EUR: 1 };
+  return availableCurrencyCodes.filter(function (currencyCode) {
+    return currencyCode === "EUR" || parseNumber(yearRates[currencyCode]) > 0;
+  });
+}
+
+function syncCurrencyOptions(year, preferredCurrency) {
+  const currencies = currenciesForYear(year);
+  currencySelect.innerHTML = "";
+  (currencies.length ? currencies : ["EUR"]).forEach(function (currencyCode) {
+    const option = document.createElement("option");
+    option.value = currencyCode;
+    option.textContent = currencyCode + " - " + currencyName(currencyCode);
+    currencySelect.appendChild(option);
+  });
+
+  const fallbackCurrency = preferredCurrency || "EUR";
+  currencySelect.value = currencies.includes(fallbackCurrency) ? fallbackCurrency : (currencies[0] || "EUR");
+}
+
+function selectedCurrency() {
+  return activeSelection && activeSelection.currency
+    ? activeSelection.currency
+    : (currencySelect.value || "EUR");
+}
+
+function currencyRateForYear(year, currencyCode) {
+  const currency = normalizeCode(currencyCode) || "EUR";
+  if (currency === "EUR") {
+    return 1;
+  }
+  const yearRates = currencyRatesByYear[normalizeCode(year)] || {};
+  return parseNumber(yearRates[currency]) || 1;
+}
+
+function convertAmountValue(value, year, currencyCode) {
+  return parseNumber(value) * currencyRateForYear(year, currencyCode);
+}
+
+function convertIntensityPerCurrency(value, year, currencyCode) {
+  const rate = currencyRateForYear(year, currencyCode);
+  return rate > 0 ? (parseNumber(value) / rate) : parseNumber(value);
+}
+
+function metricUnit(metricKey) {
+  if (metricKey === "amount") {
+    return "M " + selectedCurrency();
+  }
+  return (METRICS[metricKey] && METRICS[metricKey].unit) || "";
+}
+
+function metricScale(metricKey) {
+  if (metricKey === "amount") {
+    return 1;
+  }
+  return (METRICS[metricKey] && METRICS[metricKey].scale) || 1;
+}
+
+function displayMetricValue(value, metricKey) {
+  if (metricKey === "amount") {
+    return convertAmountValue(value, activeSelection && activeSelection.year, selectedCurrency());
+  }
+  return parseNumber(value);
+}
+
 function fmtValue(val, metricKey) {
   const metric = METRICS[metricKey];
   if (!metric) {
     return parseNumber(val).toLocaleString(undefined, { maximumFractionDigits: 2 });
   }
-  const scaled = parseNumber(val) / metric.scale;
+  const scaled = displayMetricValue(val, metricKey) / metricScale(metricKey);
   const formatted = scaled >= 1000
     ? scaled.toLocaleString(undefined, { maximumFractionDigits: 0 })
     : scaled.toLocaleString(undefined, { maximumFractionDigits: 2 });
-  return formatted + "\u00A0" + metric.unit;
+  return formatted + "\u00A0" + metricUnit(metricKey);
+}
+
+function fmtAxisTick(val, metricKey) {
+  const metric = METRICS[metricKey];
+  if (!metric) {
+    return parseNumber(val).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
+  }
+  const scaled = displayMetricValue(val, metricKey) / metricScale(metricKey);
+  return scaled.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
+}
+
+function fmtCompactValue(val, metricKey) {
+  const metric = METRICS[metricKey];
+  if (!metric) {
+    return parseNumber(val).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
+  }
+  const scaled = displayMetricValue(val, metricKey) / metricScale(metricKey);
+  return scaled.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 }) + "\u00A0" + metricUnit(metricKey);
+}
+
+function fmtScore(val) {
+  return parseNumber(val).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+}
+
+function normalizeRange(value, minValue, maxValue, invert) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  if (!Number.isFinite(minValue) || !Number.isFinite(maxValue) || maxValue <= minValue) {
+    return 1;
+  }
+  const normalized = (value - minValue) / (maxValue - minValue);
+  return invert ? (1 - normalized) : normalized;
+}
+
+function metricSourceKeys(metricKey) {
+  const metric = METRICS[metricKey] || {};
+  if (Array.isArray(metric.sourceKeys) && metric.sourceKeys.length) {
+    return metric.sourceKeys;
+  }
+  if (metric.sourceKey) {
+    return [metric.sourceKey];
+  }
+  return [metricKey];
+}
+
+function getMetricValue(row, metricKey) {
+  const keys = metricSourceKeys(metricKey);
+  for (let index = 0; index < keys.length; index += 1) {
+    const value = parseNumber(row[keys[index]]);
+    if (value) {
+      return value;
+    }
+  }
+  return 0;
 }
 
 function setStatus(msg, isError) {
   const status = document.getElementById("sankey-status");
   status.textContent = msg;
   status.style.color = isError ? "#a3412d" : "#666";
+}
+
+function setPartnerStatus(msg, isError) {
+  partnerChartStatus.textContent = msg;
+  partnerChartStatus.style.color = isError ? "#a3412d" : "#666";
+}
+
+function syncControlVisibility() {
+  if (!currencySelectLabel) {
+    return;
+  }
+  currencySelectLabel.style.display = metricSelect.value === "amount" ? "flex" : "none";
 }
 
 function supportedFlows(country, year) {
@@ -384,7 +748,9 @@ function readHashState() {
     year: normalizeCode(params.get("year")) || manifest.defaultSelection.year,
     flow: normalizeCode(params.get("flow")) || (manifest.defaultSelection.flow || "domestic"),
     metric: normalizeCode(params.get("metric")) || "CO2_total",
-    topn: parseInt(params.get("topn"), 10) || 20
+    currency: normalizeCode(params.get("currency")) || "",
+    industryLabelMode: normalizeCode(params.get("labels")) || "title",
+    topn: parseInt(params.get("topn"), 10) || 15
   };
 }
 
@@ -394,6 +760,8 @@ function writeHashState(state, replaceOnly) {
   params.set("year", state.year);
   params.set("flow", state.flow);
   params.set("metric", state.metric);
+  params.set("currency", state.currency);
+  params.set("labels", state.industryLabelMode);
   params.set("topn", String(state.topn));
   const nextHash = params.toString();
 
@@ -449,27 +817,41 @@ function resolveSelection(state) {
   const year = yearSelect.value || manifest.defaultSelection.year;
   syncFlowOptions(country, year, state.flow);
   const flow = flowSelect.value || manifest.defaultSelection.flow || "domestic";
-  const metric = METRICS[state.metric] ? state.metric : "CO2_total";
-  const topn = Math.max(5, Math.min(50, state.topn || 20));
+  const preferredCurrency = state.currency ||
+    (state.metric === "amount_usd" ? "USD" : "EUR");
+  syncCurrencyOptions(year, preferredCurrency);
+  const currency = currencySelect.value || "EUR";
+  const industryLabelMode = INDUSTRY_LABEL_MODES[state.industryLabelMode]
+    ? state.industryLabelMode
+    : "title";
+  const metric = METRICS[state.metric]
+    ? state.metric
+    : ((state.metric === "amount_usd" || state.metric === "amount_eur") ? "amount" : "CO2_total");
+  const topn = Math.max(5, Math.min(50, state.topn || 15));
 
   countrySelect.value = country;
   yearSelect.value = year;
   flowSelect.value = flow;
   metricSelect.value = metric;
+  currencySelect.value = currency;
+  industryLabelSelect.value = industryLabelMode;
   topnSlider.value = String(topn);
   topnLabel.textContent = String(topn);
+  syncControlVisibility();
 
   return {
     country: country,
     year: year,
     flow: flow,
     metric: metric,
+    currency: currency,
+    industryLabelMode: industryLabelMode,
     topn: topn
   };
 }
 
 function localCSVPath(selection) {
-  return "../year/" + selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv";
+  return rawCSVPath(selection);
 }
 
 function rawCSVPath(selection) {
@@ -494,6 +876,102 @@ async function fetchTextWithFallback(paths) {
   return null;
 }
 
+function partnerCountryCode(row, selection) {
+  const origin = normalizeCode(row.region1);
+  const destination = normalizeCode(row.region2);
+  const selectedCountry = normalizeCode(selection.country);
+
+  if (selection.flow === "exports") {
+    if (destination && destination !== selectedCountry) {
+      return destination;
+    }
+    if (origin && origin !== selectedCountry) {
+      return origin;
+    }
+    return destination || origin;
+  }
+
+  if (selection.flow === "imports") {
+    if (origin && origin !== selectedCountry) {
+      return origin;
+    }
+    if (destination && destination !== selectedCountry) {
+      return destination;
+    }
+    return origin || destination;
+  }
+
+  return "";
+}
+
+function buildPartnerBreakdown(metricKey, limit) {
+  const byPartner = new Map();
+
+  rawData.forEach(function (row) {
+    const partner = partnerCountryCode(row, activeSelection);
+    if (!partner) {
+      return;
+    }
+
+    const metricValue = getMetricValue(row, metricKey);
+    const amountValue = getMetricValue(row, "amount");
+    if (metricValue <= 0 && amountValue <= 0) {
+      return;
+    }
+
+    const current = byPartner.get(partner) || {
+      partner: partner,
+      metricValue: 0,
+      amountValue: 0
+    };
+    current.metricValue += metricValue;
+    current.amountValue += amountValue;
+    byPartner.set(partner, current);
+  });
+
+  const rows = Array.from(byPartner.values()).map(function (row) {
+    const intensity = row.amountValue > 0 ? (row.metricValue / row.amountValue) : 0;
+    return Object.assign({}, row, { intensity: intensity });
+  });
+
+  if (!rows.length) {
+    return rows;
+  }
+
+  const maxAmount = Math.max.apply(null, rows.map(function (row) {
+    return row.amountValue;
+  }));
+  const intensities = rows.map(function (row) {
+    return row.intensity;
+  });
+  const minIntensity = Math.min.apply(null, intensities);
+  const maxIntensity = Math.max.apply(null, intensities);
+  const invertIntensity = (METRICS[metricKey] && METRICS[metricKey].scoreDirection) === "lower";
+
+  return rows
+    .map(function (row) {
+      const tradeStrength = maxAmount > 0 ? (row.amountValue / maxAmount) : 0;
+      const impactEfficiency = metricKey === "amount"
+        ? tradeStrength
+        : normalizeRange(row.intensity, minIntensity, maxIntensity, invertIntensity);
+      const score = metricKey === "amount"
+        ? (tradeStrength * 100)
+        : ((tradeStrength * 0.6 + impactEfficiency * 0.4) * 100);
+      return Object.assign({}, row, {
+        tradeStrength: tradeStrength,
+        impactEfficiency: impactEfficiency,
+        score: score
+      });
+    })
+    .sort(function (a, b) {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      return b.amountValue - a.amountValue;
+    })
+    .slice(0, limit);
+}
+
 // ---------------------------------------------------------------------------
 // Build Sankey data from rawData
 // ---------------------------------------------------------------------------
@@ -503,7 +981,7 @@ function buildSankeyData(metricKey, topN) {
     const src = row.industry1;
     const tgt = row.industry2;
     if (!src || !tgt || src === tgt) continue;
-    const val = parseFloat(row[metricKey]);
+    const val = getMetricValue(row, metricKey);
     if (!isFinite(val) || val <= 0) continue;
     const key = src + "\x00" + tgt;
     flowMap.set(key, (flowMap.get(key) || 0) + val);
@@ -618,6 +1096,7 @@ function render() {
   if (!links.length) {
     setStatus("No data available for this combination.", true);
     chart.clear();
+    renderPartnerChart();
     return;
   }
 
@@ -648,10 +1127,10 @@ function render() {
       nodeAlign: "left",
       nodeGap: 14,
       nodeWidth: 22,
-      left: "2%",
-      right: "14%",
-      top: "3%",
-      bottom: "3%",
+      left: "1%",
+      right: "8%",
+      top: "2%",
+      bottom: "2%",
       data: nodes,
       links: links,
       label: {
@@ -686,6 +1165,196 @@ function render() {
     " for " + activeSelection.country + " " + activeSelection.year,
     false
   );
+
+  renderPartnerChart();
+}
+
+function renderPartnerChart() {
+  if (!rawData || !activeSelection || activeSelection.flow === "domestic") {
+    partnerChartPanel.hidden = true;
+    partnerChart.clear();
+    partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.";
+    setPartnerStatus("");
+    return;
+  }
+
+  partnerChartPanel.hidden = false;
+
+  const metricKey = activeSelection.metric;
+  const metric = METRICS[metricKey];
+  const amountMetric = METRICS.amount;
+  const rows = buildPartnerBreakdown(metricKey, 10);
+
+  if (!rows.length) {
+    partnerChart.clear();
+    partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.";
+    setPartnerStatus("No partner-country data available for this selection.", true);
+    return;
+  }
+
+  partnerChartNote.textContent = metricKey === "amount"
+    ? "Countries are ranked from strongest to weakest by amount-spent score, scaled relative to the largest partner-country trade value."
+    : "Countries are ranked from best to worst using a score that blends 60% trade-value strength with 40% indicator efficiency per amount spent.";
+
+  const categories = rows.map(function (row) {
+    return row.partner;
+  });
+  const metricSeries = rows.map(function (row) {
+    return {
+      value: row.metricValue,
+      amountValue: row.amountValue,
+      score: row.score,
+      intensity: row.intensity
+    };
+  });
+  const amountSeries = rows.map(function (row) {
+    return {
+      value: row.amountValue,
+      metricValue: row.metricValue,
+      score: row.score,
+      intensity: row.intensity
+    };
+  });
+  const showAmountSeries = metricKey !== "amount";
+
+  partnerChart.setOption({
+    animationDuration: 300,
+    legend: {
+      top: 10,
+      left: "center",
+      itemGap: 18,
+      data: showAmountSeries ? [metric.label, amountMetric.label] : [amountMetric.label]
+    },
+    grid: {
+      left: 88,
+      right: 88,
+      top: 62,
+      bottom: 28,
+      containLabel: true
+    },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      confine: true,
+      formatter: function (params) {
+        const lines = ["<b>" + params[0].axisValue + "</b>"];
+        params.forEach(function (item) {
+          const metricForSeries = item.seriesName === amountMetric.label ? "amount" : metricKey;
+          lines.push(item.marker + item.seriesName + ": <b>" + fmtValue(item.value, metricForSeries) + "</b>");
+        });
+        const source = params[0] && params[0].data ? params[0].data : null;
+        if (source) {
+          lines.push("Score: <b>" + fmtScore(source.score) + "</b>");
+          if (metricKey !== "amount") {
+            lines.push("Indicator per " + metricUnit("amount") + ": <b>" + fmtCompactValue(convertIntensityPerCurrency(source.intensity, activeSelection.year, activeSelection.currency), metricKey) + "</b>");
+          }
+        }
+        return lines.join("<br/>");
+      }
+    },
+    yAxis: {
+      type: "category",
+      inverse: true,
+      axisTick: { show: false },
+      data: categories
+    },
+    xAxis: showAmountSeries ? [
+      {
+        type: "value",
+        name: metric.label + " (" + metricUnit(metricKey) + ")",
+        position: "top",
+        nameTextStyle: {
+          padding: [0, 0, 8, 0]
+        },
+        axisLabel: {
+          formatter: function (value) {
+            return fmtAxisTick(value, metricKey);
+          }
+        }
+      },
+      {
+        type: "value",
+        name: amountMetric.label + " (" + metricUnit("amount") + ")",
+        position: "bottom",
+        nameTextStyle: {
+          padding: [0, 0, 8, 0]
+        },
+        axisLabel: {
+          formatter: function (value) {
+            return fmtAxisTick(value, "amount");
+          }
+        }
+      }
+    ] : [
+      {
+        type: "value",
+        name: amountMetric.label + " (" + metricUnit("amount") + ")",
+        position: "bottom",
+        nameTextStyle: {
+          padding: [0, 0, 8, 0]
+        },
+        axisLabel: {
+          formatter: function (value) {
+            return fmtAxisTick(value, "amount");
+          }
+        }
+      }
+    ],
+    series: showAmountSeries ? [
+      {
+        name: metric.label,
+        type: "bar",
+        xAxisIndex: 0,
+        data: metricSeries,
+        itemStyle: { color: "#2563eb" },
+        barMaxWidth: 18,
+        barGap: "20%"
+      },
+      {
+        name: amountMetric.label,
+        type: "bar",
+        xAxisIndex: 1,
+        data: amountSeries,
+        itemStyle: { color: "#f59e0b" },
+        barMaxWidth: 18,
+        label: {
+          show: true,
+          position: "right",
+          distance: 10,
+          color: "#333",
+          fontWeight: 600,
+          formatter: function (params) {
+            return "Score " + fmtScore(params.data.score);
+          }
+        }
+      }
+    ] : [
+      {
+        name: amountMetric.label,
+        type: "bar",
+        data: amountSeries,
+        itemStyle: { color: "#f59e0b" },
+        barMaxWidth: 22,
+        label: {
+          show: true,
+          position: "right",
+          distance: 10,
+          color: "#333",
+          fontWeight: 600,
+          formatter: function (params) {
+            return "Score " + fmtScore(params.data.score);
+          }
+        }
+      }
+    ]
+  }, true);
+  partnerChart.resize();
+
+  setPartnerStatus(
+    "Top 10 " + activeSelection.flow + " partner countries ranked best to worst for " +
+    activeSelection.country + " " + activeSelection.year + ".",
+    false
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -703,13 +1372,16 @@ async function loadSelection(selection) {
   const rawPath = rawCSVPath(selection);
   csvPathLabel.textContent = "year/" + selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv";
   await loadIndustryNamesForYear(selection.year);
-  setStatus("Loading data…", false);
+  setPartnerStatus("");
+  setStatus("Loading data...", false);
 
   if (!csvCache[cacheKey]) {
     const response = await fetchTextWithFallback([localPath, rawPath]);
     if (!response || !response.text) {
       rawData = null;
       chart.clear();
+      partnerChart.clear();
+      partnerChartPanel.hidden = selection.flow === "domestic";
       setStatus("Error loading data for " + cacheKey + ".", true);
       return;
     }
@@ -735,11 +1407,14 @@ function updateHashFromControls() {
     year: yearSelect.value,
     flow: flowSelect.value,
     metric: metricSelect.value,
-    topn: parseInt(topnSlider.value, 10) || 20
+    currency: currencySelect.value,
+    industryLabelMode: industryLabelSelect.value,
+    topn: parseInt(topnSlider.value, 10) || 15
   };
 
   activeSelection = selection;
   topnLabel.textContent = String(selection.topn);
+  syncControlVisibility();
   writeHashState(selection, false);
 }
 
@@ -747,26 +1422,51 @@ function updateHashFromControls() {
 // Events
 // ---------------------------------------------------------------------------
 syncCountryOptions();
+currencySelect.innerHTML = "<option value=\"EUR\">EUR - Euro</option>";
+syncControlVisibility();
 
 countrySelect.addEventListener("change", function() {
   syncYearOptions(countrySelect.value, yearSelect.value);
   syncFlowOptions(countrySelect.value, yearSelect.value, flowSelect.value);
+  syncCurrencyOptions(yearSelect.value, currencySelect.value);
   updateHashFromControls();
 });
 
 yearSelect.addEventListener("change", function() {
   syncFlowOptions(countrySelect.value, yearSelect.value, flowSelect.value);
+  syncCurrencyOptions(yearSelect.value, currencySelect.value);
   updateHashFromControls();
 });
 
 flowSelect.addEventListener("change", updateHashFromControls);
 
 metricSelect.addEventListener("change", function() {
+  syncControlVisibility();
   if (!activeSelection) {
     updateHashFromControls();
     return;
   }
   activeSelection.metric = metricSelect.value;
+  writeHashState(activeSelection, false);
+  render();
+});
+
+currencySelect.addEventListener("change", function() {
+  if (!activeSelection) {
+    updateHashFromControls();
+    return;
+  }
+  activeSelection.currency = currencySelect.value || "EUR";
+  writeHashState(activeSelection, false);
+  render();
+});
+
+industryLabelSelect.addEventListener("change", function() {
+  if (!activeSelection) {
+    updateHashFromControls();
+    return;
+  }
+  activeSelection.industryLabelMode = industryLabelSelect.value || "title";
   writeHashState(activeSelection, false);
   render();
 });
@@ -777,9 +1477,19 @@ topnSlider.addEventListener("input", function() {
     updateHashFromControls();
     return;
   }
-  activeSelection.topn = parseInt(topnSlider.value, 10) || 20;
+  activeSelection.topn = parseInt(topnSlider.value, 10) || 15;
   writeHashState(activeSelection, false);
   render();
+});
+
+scoreHelpButton.addEventListener("click", function() {
+  const isHidden = scoreHelpPanel.hasAttribute("hidden");
+  if (isHidden) {
+    scoreHelpPanel.removeAttribute("hidden");
+  } else {
+    scoreHelpPanel.setAttribute("hidden", "");
+  }
+  scoreHelpButton.setAttribute("aria-expanded", String(isHidden));
 });
 
 window.addEventListener("hashchange", function() {
@@ -788,10 +1498,13 @@ window.addEventListener("hashchange", function() {
 
 window.addEventListener("resize", function() {
   chart.resize();
+  partnerChart.resize();
 });
 
 // Init
-loadFromHash(true);
+loadCurrencyRates().finally(function () {
+  loadFromHash(true);
+});
 </script>
 </body>
 </html>
