@@ -20,6 +20,10 @@
     "flow": "domestic",
     "year": "2022"
   },
+  "excludedSources": [
+    "CONST",
+    "WHOLE"
+  ],
   "flowsByCountryYear": {
     "AU|2019": [
       "domestic",
@@ -130,6 +134,7 @@
       "exports"
     ]
   },
+  "sourceLimit": 15,
   "supportedFlows": [
     "domestic",
     "imports",

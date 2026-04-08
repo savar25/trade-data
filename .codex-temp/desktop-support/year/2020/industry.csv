@@ -1,0 +1,201 @@
+industry_id,name,category
+PADDY,Paddy rice,Other Services
+WHEAT,Wheat,Other Services
+CEREA,Cereal grains nec,Other Services
+VEGET,"Vegetables, fruit, nuts",Other Services
+OILSE,Oil seeds,Other Services
+SUGAR,"Sugar cane, sugar beet",Other Services
+PLANT,Plant-based fibers,Agriculture
+CROPS,Crops nec,Agriculture
+CATTL,Cattle,Agriculture
+PIGS9,Pigs,Agriculture
+POULT,Poultry,Agriculture
+MEATA,Meat animals nec,Agriculture
+ANIMA,Animal products nec,Other Services
+RAWMI,Raw milk,Agriculture
+WOOLS,"Wool, silk-worm cocoons",Agriculture
+MANUR,Manure (conventional treatment),Agriculture
+MANU1,Manure (biogas treatment),Agriculture
+FORES,"Products of forestry, logging and related services (02)",Forestry
+FISHF,Fish and other fishing products; services incidental of fishing (05),Fishing
+ANTHR,Anthracite,Mining
+COKIN,Coking Coal,Mining
+BITUM,Other Bituminous Coal,Mining
+SUBBI,Sub-Bituminous Coal,Mining
+PATEN,Patent Fuel,Other Services
+LIGNI,Lignite/Brown Coal,Mining
+BKBPE,BKB/Peat Briquettes,Other Services
+PEAT2,Peat,Other Services
+CRUDE,"Crude petroleum and services related to crude oil extraction, excluding surveying",Mining
+NATUR,"Natural gas and services related to natural gas extraction, excluding surveying",Mining
+NATU1,Natural Gas Liquids,Mining
+HYDRO,Other Hydrocarbons,Other Services
+URANI,Uranium and thorium ores (12),Mining
+IRONO,Iron ores,Mining
+COPPE,Copper ores and concentrates,Mining
+NICKE,Nickel ores and concentrates,Mining
+ALUMI,Aluminium ores and concentrates,Mining
+PRECI,Precious metal ores and concentrates,Mining
+LEADZ,"Lead, zinc and tin ores and concentrates",Mining
+NONFE,Other non-ferrous metal ores and concentrates,Mining
+STONE,Stone,Other Services
+SANDC,Sand and clay,Other Services
+CHEMI,"Chemical and fertilizer minerals, salt and other mining and quarrying products n.e.c.",Mining
+MEATC,Products of meat cattle,Agriculture
+MEATP,Products of meat pigs,Agriculture
+MEAT1,Products of meat poultry,Agriculture
+MEAT4,Meat products nec,Agriculture
+VEGE1,products of Vegetable oils and fats,Other Services
+DAIRY,Dairy products,Food Manufacturing
+PROCE,Processed rice,Other Services
+SUGA1,Sugar,Other Services
+FOOD5,Food products nec,Food Manufacturing
+BEVER,Beverages,Food Manufacturing
+FISH5,Fish products,Fishing
+TOBAC,Tobacco products (16),Food Manufacturing
+TEXTI,Textiles (17),Textiles
+WEARI,Wearing apparel; furs (18),Textiles
+LEATH,Leather and leather products (19),Textiles
+WOODW,Wood and products of wood and cork (except furniture); articles of straw and plaiting materials (20),Forestry
+WOODM,"Wood material for treatment, Re-processing of secondary wood material into new wood material",Forestry
+PULP5,Pulp,Other Services
+SECON,"Secondary paper for treatment, Re-processing of secondary paper into new pulp",Other Services
+PAPER,Paper and paper products,Other Services
+PRINT,Printed matter and recorded media (22),Information
+COKEO,Coke Oven Coke,Other Services
+GASCO,Gas Coke,Mining
+COALT,Coal Tar,Mining
+MOTOR,Motor Gasoline,Mining
+AVIAT,Aviation Gasoline,Mining
+GASOL,Gasoline Type Jet Fuel,Mining
+KEROS,Kerosene Type Jet Fuel,Other Services
+KERO1,Kerosene,Other Services
+GASDI,Gas/Diesel Oil,Mining
+HEAVY,Heavy Fuel Oil,Other Services
+REFIN,Refinery Gas,Mining
+LIQUE,Liquefied Petroleum Gases (LPG),Mining
+REFI1,Refinery Feedstocks,Other Services
+ETHAN,Ethane,Other Services
+NAPHT,Naphtha,Other Services
+WHITE,White Spirit & SBP,Other Services
+LUBRI,Lubricants,Other Services
+BITU1,Bitumen,Other Services
+PARAF,Paraffin Waxes,Other Services
+PETRO,Petroleum Coke,Mining
+NONSP,Non-specified Petroleum Products,Mining
+NUCLE,Nuclear fuel,Other Services
+PLAST,"Plastics, basic",Chemicals
+SECO1,"Secondary plastic for treatment, Re-processing of secondary plastic into new plastic",Chemicals
+NFERT,N-fertiliser,Other Services
+PFERT,P- and other fertiliser,Other Services
+CHEM1,Chemicals nec,Chemicals
+CHARC,Charcoal,Mining
+ADDIT,Additives/Blending Components,Other Services
+BIOGA,Biogasoline,Mining
+BIODI,Biodiesels,Other Services
+LIQUI,Other Liquid Biofuels,Other Services
+RUBBE,Rubber and plastic products (25),Chemicals
+GLASS,Glass and glass products,Other Services
+SECO2,"Secondary glass for treatment, Re-processing of secondary glass into new glass",Other Services
+CERAM,Ceramic goods,Other Services
+BRICK,"Bricks, tiles and construction products, in baked clay",Construction
+CEMEN,"Cement, lime and plaster",Other Services
+ASHFO,"Ash for treatment, Re-processing of ash into clinker",Other Services
+NONME,Other non-metallic mineral products,Metals
+BASIC,Basic iron and steel and of ferro-alloys and first products thereof,Metals
+SECO3,"Secondary steel for treatment, Re-processing of secondary steel into new steel",Metals
+PREC1,Precious metals,Metals
+SECO4,"Secondary preciuos metals for treatment, Re-processing of secondary preciuos metals into new preciuos metals",Metals
+ALUM1,Aluminium and aluminium products,Other Services
+SECO5,"Secondary aluminium for treatment, Re-processing of secondary aluminium into new aluminium",Other Services
+LEAD1,"Lead, zinc and tin and products thereof",Other Services
+SECO6,"Secondary lead for treatment, Re-processing of secondary lead into new lead",Other Services
+COPP1,Copper products,Other Services
+SECO7,"Secondary copper for treatment, Re-processing of secondary copper into new copper",Other Services
+NONF1,Other non-ferrous metal products,Metals
+SECO8,"Secondary other non-ferrous metals for treatment, Re-processing of secondary other non-ferrous metals into new other non-ferrous metals",Metals
+FOUND,Foundry work services,Other Services
+FABRI,"Fabricated metal products, except machinery and equipment (28)",Metals
+MACHI,Machinery and equipment n.e.c. (29),Machinery
+OFFIC,Office machinery and computers (30),Machinery
+ELECT,Electrical machinery and apparatus n.e.c. (31),Machinery
+RADIO,"Radio, television and communication equipment and apparatus (32)",Machinery
+MEDIC,"Medical, precision and optical instruments, watches and clocks (33)",Health & Social
+MOTO1,"Motor vehicles, trailers and semi-trailers (34)",Transportation Equipment
+TRANS,Other transport equipment (35),Machinery
+FURNI,Furniture; other manufactured goods n.e.c. (36),Other Services
+SECO9,Secondary raw materials,Other Services
+BOTTL,"Bottles for treatment, Recycling of bottles by direct reuse",Other Services
+ELEC1,Electricity by coal,Mining
+ELEC2,Electricity by gas,Mining
+ELEC3,Electricity by nuclear,Utilities
+ELEC4,Electricity by hydro,Utilities
+ELEC5,Electricity by wind,Utilities
+ELEC6,Electricity by petroleum and other oil derivatives,Mining
+ELEC7,Electricity by biomass and waste,Utilities
+ELEC8,Electricity by solar photovoltaic,Utilities
+ELEC9,Electricity by solar thermal,Utilities
+ELE10,"Electricity by tide, wave, ocean",Utilities
+ELE11,Electricity by Geothermal,Utilities
+ELE12,Electricity nec,Utilities
+TRAN1,Transmission services of electricity,Utilities
+DISTR,Distribution and trade services of electricity,Utilities
+COKE1,Coke oven gas,Mining
+BLAST,Blast Furnace Gas,Mining
+OXYGE,Oxygen Steel Furnace Gas,Mining
+GASWO,Gas Works Gas,Mining
+BIOG1,Biogas,Mining
+DIST1,Distribution services of gaseous fuels through mains,Mining
+STEAM,Steam and hot water supply services,Utilities
+COLLE,"Collected and purified water, distribution services of water (41)",Utilities
+CONST,Construction work (45),Construction
+SEC10,"Secondary construction material for treatment, Re-processing of secondary construction material into aggregates",Construction
+SALEM,"Sale, maintenance, repair of motor vehicles, motor vehicles parts, motorcycles, motor cycles parts and accessoiries",Transportation Equipment
+RETAI,Retail trade services of motor fuel,Transportation Equipment
+WHOLE,"Wholesale trade and commission trade services, except of motor vehicles and motorcycles (51)",Transportation Equipment
+RETA1,"Retail  trade services, except of motor vehicles and motorcycles; repair services of personal and household goods (52)",Transportation Equipment
+HOTEL,Hotel and restaurant services (55),Accommodation & Food
+RAILW,Railway transportation services,Transportation Equipment
+LANDT,Other land transportation services,Transportation Equipment
+TRAN2,Transportation services via pipelines,Transportation Equipment
+SEACO,Sea and coastal water transportation services,Transportation Equipment
+INLAN,Inland water transportation services,Transportation Equipment
+AIRTR,Air transport services (62),Transportation Equipment
+SUPPO,Supporting and auxiliary transport services; travel agency services (63),Transportation Equipment
+POSTT,Post and telecommunication services (64),Information
+FINAN,"Financial intermediation services, except insurance and pension funding services (65)",Information
+INSUR,"Insurance and pension funding services, except compulsory social security services (66)",Finance & Insurance
+AUXIL,Services auxiliary to financial intermediation (67),Information
+REALE,Real estate services (70),Real Estate
+RENTI,Renting services of machinery and equipment without operator and of personal and household goods (71),Machinery
+COMPU,Computer and related services (72),Machinery
+RESEA,Research and development services (73),Other Services
+BUSIN,Other business services (74),Other Services
+PUBLI,Public administration and defence services; compulsory social security services (75),Public Administration
+EDUCA,Education services (80),Education
+HEALT,Health and social work services (85),Health & Social
+FOODW,Food waste for treatment: incineration,Food Manufacturing
+PAPE1,Paper waste for treatment: incineration,Administrative Services
+PLAS1,Plastic waste for treatment: incineration,Chemicals
+INTER,Intert/metal waste for treatment: incineration,Metals
+TEXT1,Textiles waste for treatment: incineration,Textiles
+WOOD1,Wood waste for treatment: incineration,Forestry
+OILHA,Oil/hazardous waste for treatment: incineration,Administrative Services
+FOOD1,Food waste for treatment: biogasification and land application,Mining
+PAPE2,Paper waste for treatment: biogasification and land application,Mining
+SEWAG,Sewage sludge for treatment: biogasification and land application,Mining
+FOOD2,Food waste for treatment: composting and land application,Food Manufacturing
+PAPE3,Paper and wood waste for treatment: composting and land application,Forestry
+FOOD3,Food waste for treatment: waste water treatment,Food Manufacturing
+WASTE,Other waste for treatment: waste water treatment,Utilities
+FOOD4,Food waste for treatment: landfill,Food Manufacturing
+PAPE4,Paper for treatment: landfill,Transportation Services
+PLAS2,Plastic waste for treatment: landfill,Chemicals
+INERT,Inert/metal/hazardous waste for treatment: landfill,Metals
+TEXT2,Textiles waste for treatment: landfill,Textiles
+WOOD2,Wood waste for treatment: landfill,Forestry
+MEMBE,Membership organisation services n.e.c. (91),Transportation Equipment
+RECRE,"Recreational, cultural and sporting services (92)",Arts & Recreation
+93197,Other services (93),Other Services
+PRIVA,Private households with employed persons (95),Other Services
+EXTRA,Extra-territorial organizations and bodies,Other Services

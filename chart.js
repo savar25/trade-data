@@ -1115,20 +1115,18 @@
       return impactDataCache[cacheKey];
     }
 
-    if (!dynamicTopNEnabled) {
-      const scriptPaths = [
-        joinPath(datasetBasePath, year + "/" + country + "/" + flow + ".js")
-      ];
-      if (flow === "domestic") {
-        scriptPaths.push(joinPath(datasetBasePath, year + "/" + country + ".js"));
-      }
+    const scriptPaths = [
+      joinPath(datasetBasePath, year + "/" + country + "/" + flow + ".js")
+    ];
+    if (flow === "domestic") {
+      scriptPaths.push(joinPath(datasetBasePath, year + "/" + country + ".js"));
+    }
 
-      for (let index = 0; index < scriptPaths.length; index += 1) {
-        const scripted = await loadDatasetScript(scriptPaths[index]);
-        if (scripted) {
-          impactDataCache[cacheKey] = scripted;
-          return scripted;
-        }
+    for (let index = 0; index < scriptPaths.length; index += 1) {
+      const scripted = await loadDatasetScript(scriptPaths[index]);
+      if (scripted) {
+        impactDataCache[cacheKey] = scripted;
+        return scripted;
       }
     }
 
@@ -1154,7 +1152,7 @@
       return resourceSelectionCache[cacheKey];
     }
 
-    if (!dynamicTopNEnabled && resourceManifest && resourceManifest.selections && resourceManifest.selections[cacheKey]) {
+    if (resourceManifest && resourceManifest.selections && resourceManifest.selections[cacheKey]) {
       resourceSelectionCache[cacheKey] = resourceManifest.selections[cacheKey];
       return resourceSelectionCache[cacheKey];
     }
@@ -1239,6 +1237,19 @@
 
       sankeyData = nextImpactData;
       activeResourceSelection = nextResourceSelection;
+      if (topnSlider) {
+        const availableTopN = normalizeTopN(
+          (sankeyData && sankeyData.meta && sankeyData.meta.source_limit) ||
+          (resourceManifest && resourceManifest.meta && resourceManifest.meta.sourceLimit) ||
+          defaultTopN
+        );
+        topnSlider.max = String(availableTopN);
+        if (currentTopN() > availableTopN) {
+          activeSelection.topn = availableTopN;
+          syncTopNControl(availableTopN);
+          writeSelectionHash(country, year, flow, false, availableTopN);
+        }
+      }
       syncCurrencyOptions(year, currentCurrency);
       syncGlobalOptionVisibility();
 

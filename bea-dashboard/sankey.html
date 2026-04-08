@@ -256,11 +256,12 @@
     <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
     &middot; labels from <code>year/[year]/industry.csv</code>
     &middot; currency rates from <code>concordance/eur_annual_rates.csv</code>
-    &middot; repo CSV: <code id="csv-path-label">year/.../trade_impact.csv</code>
+    &middot; Sankey bundle: <code id="csv-path-label">sankey-datasets/[year]/[country]/[flow].js</code>
   </div>
 
 </div><!-- end .content.contentpadding -->
 
+<script src="../sankey-data.js"></script>
 <script>
 // ---------------------------------------------------------------------------
 // Configuration
@@ -440,15 +441,16 @@ const partnerChartNote = document.getElementById("partner-chart-note");
 const partnerChartStatus = document.getElementById("partner-chart-status");
 const partnerChartDom = document.getElementById("partner-chart");
 const partnerChart = echarts.init(partnerChartDom);
-const csvCache = {};
+const datasetCache = {};
 const industryNameByYear = {};
 const currencyRatesByYear = {};
 
 let availableCurrencyCodes = ["EUR"];
 let currencyRatesPromise = null;
 let manifestPromise = null;
+let activeDatasetScript = null;
 
-let rawData = null;
+let selectionData = null;
 let activeSelection = null;
 
 // ---------------------------------------------------------------------------
@@ -642,15 +644,10 @@ async function loadManifest() {
   }
 
   manifestPromise = (async function () {
-    try {
-      const discoveredPaths = await discoverTradeImpactPaths();
-      if (discoveredPaths.length) {
-        manifest = buildManifestFromPaths(discoveredPaths);
-        window.TRADE_SANKEY_MANIFEST = manifest;
-        return manifest;
-      }
-    } catch (error) {
-      // Fall back to a static manifest if GitHub tree discovery is unavailable.
+    if (window.TRADE_SANKEY_MANIFEST) {
+      manifest = sanitizeManifest(window.TRADE_SANKEY_MANIFEST);
+      window.TRADE_SANKEY_MANIFEST = manifest;
+      return manifest;
     }
 
     const response = await fetchTextWithFallback([
@@ -931,6 +928,22 @@ function metricSourceKeys(metricKey) {
   return [metricKey];
 }
 
+function resolveDatasetMetricKey(metricKey) {
+  if (!selectionData || !selectionData.dataset) {
+    return metricKey;
+  }
+  if (selectionData.dataset[metricKey]) {
+    return metricKey;
+  }
+  const candidates = metricSourceKeys(metricKey);
+  for (let index = 0; index < candidates.length; index += 1) {
+    if (selectionData.dataset[candidates[index]]) {
+      return candidates[index];
+    }
+  }
+  return metricKey;
+}
+
 function getMetricValue(row, metricKey) {
   const keys = metricSourceKeys(metricKey);
   for (let index = 0; index < keys.length; index += 1) {
@@ -1100,6 +1113,42 @@ async function fetchTextWithFallback(paths) {
   return null;
 }
 
+function loadDatasetScript(paths) {
+  const scriptPaths = Array.isArray(paths) ? paths.slice() : [paths];
+  return new Promise(function (resolve) {
+    function tryNext() {
+      if (!scriptPaths.length) {
+        activeDatasetScript = null;
+        resolve(null);
+        return;
+      }
+
+      const nextPath = scriptPaths.shift();
+      if (activeDatasetScript && activeDatasetScript.parentNode) {
+        activeDatasetScript.parentNode.removeChild(activeDatasetScript);
+      }
+
+      window.TRADE_SANKEY_DATA = null;
+      const script = document.createElement("script");
+      script.src = nextPath;
+      script.onload = function () {
+        activeDatasetScript = script;
+        resolve(window.TRADE_SANKEY_DATA && window.TRADE_SANKEY_DATA.dataset ? window.TRADE_SANKEY_DATA : null);
+      };
+      script.onerror = function () {
+        if (script.parentNode) {
+          script.parentNode.removeChild(script);
+        }
+        activeDatasetScript = null;
+        tryNext();
+      };
+      document.head.appendChild(script);
+    }
+
+    tryNext();
+  });
+}
+
 function partnerCountryCode(row, selection) {
   const origin = normalizeCode(row.region1);
   const destination = normalizeCode(row.region2);
@@ -1129,117 +1178,56 @@ function partnerCountryCode(row, selection) {
 }
 
 function buildPartnerBreakdown(metricKey, limit) {
-  const byPartner = new Map();
-
-  rawData.forEach(function (row) {
-    const partner = partnerCountryCode(row, activeSelection);
-    if (!partner) {
-      return;
-    }
-
-    const metricValue = getMetricValue(row, metricKey);
-    const amountValue = getMetricValue(row, "amount");
-    if (metricValue <= 0 && amountValue <= 0) {
-      return;
-    }
-
-    const current = byPartner.get(partner) || {
-      partner: partner,
-      metricValue: 0,
-      amountValue: 0
-    };
-    current.metricValue += metricValue;
-    current.amountValue += amountValue;
-    byPartner.set(partner, current);
-  });
-
-  const rows = Array.from(byPartner.values()).map(function (row) {
-    const intensity = row.amountValue > 0 ? (row.metricValue / row.amountValue) : 0;
-    return Object.assign({}, row, { intensity: intensity });
-  });
-
-  if (!rows.length) {
-    return rows;
+  const datasetMetricKey = resolveDatasetMetricKey(metricKey);
+  if (!selectionData || !selectionData.dataset || !selectionData.dataset[datasetMetricKey]) {
+    return [];
   }
 
-  const maxAmount = Math.max.apply(null, rows.map(function (row) {
-    return row.amountValue;
-  }));
-  const intensities = rows.map(function (row) {
-    return row.intensity;
+  return (selectionData.dataset[datasetMetricKey].partner_breakdown || []).slice(0, limit).map(function (row) {
+    return {
+      partner: normalizeCode(row.partner),
+      metricValue: parseNumber(row.metricValue),
+      amountValue: parseNumber(row.amountValue),
+      intensity: parseNumber(row.intensity),
+      tradeStrength: parseNumber(row.tradeStrength),
+      impactEfficiency: parseNumber(row.impactEfficiency),
+      score: parseNumber(row.score)
+    };
   });
-  const minIntensity = Math.min.apply(null, intensities);
-  const maxIntensity = Math.max.apply(null, intensities);
-  const invertIntensity = (METRICS[metricKey] && METRICS[metricKey].scoreDirection) === "lower";
-
-  return rows
-    .map(function (row) {
-      const tradeStrength = maxAmount > 0 ? (row.amountValue / maxAmount) : 0;
-      const impactEfficiency = metricKey === "amount"
-        ? tradeStrength
-        : normalizeRange(row.intensity, minIntensity, maxIntensity, invertIntensity);
-      const score = metricKey === "amount"
-        ? (tradeStrength * 100)
-        : ((tradeStrength * 0.6 + impactEfficiency * 0.4) * 100);
-      return Object.assign({}, row, {
-        tradeStrength: tradeStrength,
-        impactEfficiency: impactEfficiency,
-        score: score
-      });
-    })
-    .sort(function (a, b) {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-      return b.amountValue - a.amountValue;
-    })
-    .slice(0, limit);
 }
 
 // ---------------------------------------------------------------------------
 // Build Sankey data from rawData
 // ---------------------------------------------------------------------------
 function buildSankeyData(metricKey, topN) {
-  const flowMap = new Map();
-  for (const row of rawData) {
-    const src = row.industry1;
-    const tgt = row.industry2;
-    if (!src || !tgt || src === tgt) continue;
-    const val = getMetricValue(row, metricKey);
-    if (!isFinite(val) || val <= 0) continue;
-    const key = src + "\x00" + tgt;
-    flowMap.set(key, (flowMap.get(key) || 0) + val);
+  const datasetMetricKey = resolveDatasetMetricKey(metricKey);
+  const dataset = selectionData && selectionData.dataset ? selectionData.dataset[datasetMetricKey] : null;
+  if (!dataset) {
+    return { nodes: [], links: [] };
   }
 
-  const resolvedMap = new Map();
-  for (const [key, val] of flowMap) {
-    const sep = key.indexOf("\x00");
-    const src = key.slice(0, sep);
-    const tgt = key.slice(sep + 1);
-    const revKey = tgt + "\x00" + src;
-    if (resolvedMap.has(revKey)) {
-      if (val > resolvedMap.get(revKey)) {
-        resolvedMap.delete(revKey);
-        resolvedMap.set(key, val);
-      }
-    } else {
-      resolvedMap.set(key, val);
-    }
-  }
+  const rankedSources = (dataset.ranked_sources || []).slice(0, topN);
+  let links = rankedSources.length
+    ? rankedSources.map(function (source) {
+        return dataset.links_by_source && dataset.links_by_source[source];
+      }).filter(Boolean)
+    : [];
 
-  let links = Array.from(resolvedMap.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, topN)
-    .map(([key, value]) => {
-      const sep = key.indexOf("\x00");
-      return {
-        source: normalizeCode(key.slice(0, sep)),
-        target: normalizeCode(key.slice(sep + 1)),
-        value: value
-      };
-    });
+  links = links.map(function (link) {
+    return {
+      source: normalizeCode(link.source),
+      target: normalizeCode(link.target),
+      value: parseNumber(link.value),
+      amount: parseNumber(link.amount),
+      trade_id: parseNumber(link.trade_id)
+    };
+  });
 
-  links = removeCycles(links);
+  links = removeCycles(
+    links.filter(function (link) {
+      return link.source && link.target && link.source !== link.target && link.value > 0;
+    })
+  );
 
   const nodeSet = new Set();
   for (const link of links) {
@@ -1312,7 +1300,7 @@ function removeCycles(links) {
 // Render
 // ---------------------------------------------------------------------------
 function render() {
-  if (!rawData || !activeSelection) return;
+  if (!selectionData || !activeSelection) return;
 
   const metric = METRICS[activeSelection.metric];
   const { nodes, links } = buildSankeyData(activeSelection.metric, activeSelection.topn);
@@ -1335,7 +1323,8 @@ function render() {
             "<b>" + displayIndustryName(params.data.source) + "</b>" +
             " &rarr; " +
             "<b>" + displayIndustryName(params.data.target) + "</b><br/>" +
-            metric.label + ": <b>" + fmtValue(params.data.value, activeSelection.metric) + "</b>"
+            metric.label + ": <b>" + fmtValue(params.data.value, activeSelection.metric) + "</b>" +
+            (params.data.amount ? "<br/>Amount Spent: <b>" + fmtValue(params.data.amount, "amount") + "</b>" : "")
           );
         }
         return "<b>" + displayIndustryName(params.name) + "</b>";
@@ -1394,7 +1383,7 @@ function render() {
 }
 
 function renderPartnerChart() {
-  if (!rawData || !activeSelection || activeSelection.flow === "domestic") {
+  if (!selectionData || !activeSelection || activeSelection.flow === "domestic") {
     partnerChartPanel.hidden = true;
     partnerChart.clear();
     partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.";
@@ -1592,27 +1581,57 @@ async function loadSelection(selection) {
     selection.flow
   ].join("|");
 
-  const localPath = localCSVPath(selection);
-  const rawPath = rawCSVPath(selection);
-  csvPathLabel.textContent = "year/" + selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv";
+  const localDatasetPath = "../sankey-datasets/" + selection.year + "/" + selection.country + "/" + selection.flow + ".js";
+  const cdnDatasetPath = "https://cdn.jsdelivr.net/gh/savar25/trade-data@main/sankey-datasets/" + selection.year + "/" + selection.country + "/" + selection.flow + ".js";
+  const fallbackLocalDatasetPath = selection.flow === "domestic"
+    ? "../sankey-datasets/" + selection.year + "/" + selection.country + ".js"
+    : "";
+  const fallbackCdnDatasetPath = selection.flow === "domestic"
+    ? "https://cdn.jsdelivr.net/gh/savar25/trade-data@main/sankey-datasets/" + selection.year + "/" + selection.country + ".js"
+    : "";
+  csvPathLabel.textContent = "sankey-datasets/" + selection.year + "/" + selection.country + "/" + selection.flow + ".js";
   await loadIndustryNamesForYear(selection.year);
   setPartnerStatus("");
   setStatus("Loading data...", false);
 
-  if (!csvCache[cacheKey]) {
-    const response = await fetchTextWithFallback([localPath, rawPath]);
-    if (!response || !response.text) {
-      rawData = null;
+  if (!datasetCache[cacheKey]) {
+    const scripted = await loadDatasetScript([
+      localDatasetPath,
+      cdnDatasetPath,
+      fallbackLocalDatasetPath,
+      fallbackCdnDatasetPath
+    ].filter(Boolean));
+    if (!scripted || !scripted.dataset) {
+      selectionData = null;
       chart.clear();
       partnerChart.clear();
       partnerChartPanel.hidden = selection.flow === "domestic";
       setStatus("Error loading data for " + cacheKey + ".", true);
       return;
     }
-    csvCache[cacheKey] = d3.csvParse(response.text);
+    datasetCache[cacheKey] = scripted;
   }
 
-  rawData = csvCache[cacheKey];
+  selectionData = datasetCache[cacheKey];
+  const availableMetrics = Object.keys(selectionData.dataset || {});
+  if (!availableMetrics.includes(activeSelection.metric)) {
+    const fallbackMetric = availableMetrics.includes("CO2_total")
+      ? "CO2_total"
+      : (availableMetrics.includes("amount") ? "amount" : (availableMetrics[0] || "CO2_total"));
+    activeSelection.metric = fallbackMetric;
+    metricSelect.value = fallbackMetric;
+  }
+  const topnLimit = Math.max(
+    5,
+    parseInt((selectionData.meta && selectionData.meta.source_limit) || manifest.sourceLimit, 10) || 15
+  );
+  topnSlider.max = String(topnLimit);
+  if (activeSelection.topn > topnLimit) {
+    activeSelection.topn = topnLimit;
+    topnSlider.value = String(topnLimit);
+    topnLabel.textContent = String(topnLimit);
+  }
+  writeHashState(activeSelection, true);
   render();
 }
 
