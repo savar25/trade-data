@@ -496,6 +496,12 @@
       <label for="country-select">Country</label>
       <select id="country-select"></select>
     </div>
+    <div id="other-country-control" class="control" hidden>
+      <label for="other-country" id="other-country-label">From</label>
+      <select id="other-country">
+        <option value="">All</option>
+      </select>
+    </div>
     <div class="control">
       <label for="year-select">Year</label>
       <select id="year-select"></select>
@@ -507,6 +513,10 @@
         <option value="imports">Imports</option>
         <option value="exports">Exports</option>
       </select>
+    </div>
+    <div class="control">
+      <label for="metric-select">Indicator</label>
+      <select id="metric-select"></select>
     </div>
     <div id="currency-control" class="control">
       <label for="currency-select">Currency</label>
@@ -536,7 +546,7 @@
     <strong>Data source:</strong>
     <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
     &middot; impact data loaded directly from <code>year/[year]/[country]/[flow]/trade_impact.csv</code>
-    &middot; lightweight dataset inventory from <code>sankey-manifest.json</code>
+    &middot; dataset inventory discovered from repo <code>year/.../trade_impact.csv</code> paths
     &middot; industry labels from <code>year/[year]/industry.csv</code>
     &middot; panel rendering shared with <a href="./bea-dashboard/sankey.html">bea-dashboard/sankey.html</a>
   </div>
@@ -552,12 +562,161 @@ window.TRADE_DASHBOARD_CONFIG = {
   rawYearBasePath: "https://raw.githubusercontent.com/savar25/trade-data/main/year"
 };
 </script>
-<script src="./sankey-data.js"></script>
 <script src="./trade-resource-data.js"></script>
 <script
   src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   crossorigin=""
 ></script>
-<script src="./chart.js"></script>
+<script>
+(function () {
+  const REPO_OWNER = "savar25";
+  const REPO_NAME = "trade-data";
+  const REPO_BRANCH = "main";
+  const SUPPORTED_FLOWS = ["domestic", "imports", "exports"];
+  const TRADE_IMPACT_PATH_PATTERN = /^year\/([^/]+)\/([^/]+)\/(domestic|imports|exports)\/trade_impact\.csv$/;
+
+  function createDefaultManifest() {
+    return {
+      countries: ["US"],
+      yearsByCountry: { US: ["2022"] },
+      flowsByCountryYear: { "US|2022": ["domestic"] },
+      supportedFlows: SUPPORTED_FLOWS.slice(),
+      excludedSources: ["CONST", "WHOLE"],
+      sourceLimit: 15,
+      defaultSelection: { country: "US", year: "2022", flow: "domestic" }
+    };
+  }
+
+  function normalizeCode(value) {
+    return String(value || "").trim();
+  }
+
+  function sortYears(years) {
+    return years.slice().sort(function (left, right) {
+      const leftNumber = Number(left);
+      const rightNumber = Number(right);
+      if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && leftNumber !== rightNumber) {
+        return leftNumber - rightNumber;
+      }
+      return String(left).localeCompare(String(right));
+    });
+  }
+
+  function buildManifestFromPaths(paths) {
+    const discoveredCountries = new Set();
+    const yearsByCountry = {};
+    const flowsByCountryYear = {};
+
+    paths.forEach(function (path) {
+      const match = String(path || "").match(TRADE_IMPACT_PATH_PATTERN);
+      if (!match) {
+        return;
+      }
+
+      const year = normalizeCode(match[1]);
+      const country = normalizeCode(match[2]);
+      const flow = normalizeCode(match[3]);
+      if (!year || !country || !flow) {
+        return;
+      }
+
+      discoveredCountries.add(country);
+
+      if (!yearsByCountry[country]) {
+        yearsByCountry[country] = [];
+      }
+      if (!yearsByCountry[country].includes(year)) {
+        yearsByCountry[country].push(year);
+      }
+
+      const key = country + "|" + year;
+      if (!flowsByCountryYear[key]) {
+        flowsByCountryYear[key] = [];
+      }
+      if (!flowsByCountryYear[key].includes(flow)) {
+        flowsByCountryYear[key].push(flow);
+      }
+    });
+
+    const countries = Array.from(discoveredCountries).sort();
+    countries.forEach(function (country) {
+      yearsByCountry[country] = sortYears(yearsByCountry[country] || []);
+    });
+    Object.keys(flowsByCountryYear).forEach(function (key) {
+      flowsByCountryYear[key].sort(function (left, right) {
+        return SUPPORTED_FLOWS.indexOf(left) - SUPPORTED_FLOWS.indexOf(right);
+      });
+    });
+
+    const fallback = createDefaultManifest();
+    const defaultCountry = countries.includes("US")
+      ? "US"
+      : (countries[0] || fallback.defaultSelection.country);
+    const defaultYears = yearsByCountry[defaultCountry] || [];
+    const defaultYear = defaultYears.length
+      ? defaultYears[defaultYears.length - 1]
+      : fallback.defaultSelection.year;
+    const defaultFlows = flowsByCountryYear[defaultCountry + "|" + defaultYear] || [];
+    const defaultFlow = defaultFlows.includes("domestic")
+      ? "domestic"
+      : (defaultFlows[0] || fallback.defaultSelection.flow);
+
+    return {
+      countries: countries.length ? countries : fallback.countries.slice(),
+      yearsByCountry: Object.keys(yearsByCountry).length ? yearsByCountry : fallback.yearsByCountry,
+      flowsByCountryYear: Object.keys(flowsByCountryYear).length ? flowsByCountryYear : fallback.flowsByCountryYear,
+      supportedFlows: fallback.supportedFlows.slice(),
+      excludedSources: fallback.excludedSources.slice(),
+      sourceLimit: fallback.sourceLimit,
+      defaultSelection: {
+        country: defaultCountry,
+        year: defaultYear,
+        flow: defaultFlow
+      }
+    };
+  }
+
+  async function fetchJSON(url) {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json"
+      }
+    });
+    if (!response.ok) {
+      throw new Error("Unable to load " + url);
+    }
+    return response.json();
+  }
+
+  async function discoverTradeImpactPaths() {
+    const payload = await fetchJSON(
+      "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/git/trees/" + REPO_BRANCH + "?recursive=1"
+    );
+    const tree = Array.isArray(payload && payload.tree) ? payload.tree : [];
+    return tree
+      .filter(function (entry) {
+        return entry && entry.type === "blob" && TRADE_IMPACT_PATH_PATTERN.test(entry.path);
+      })
+      .map(function (entry) {
+        return entry.path;
+      });
+  }
+
+  function loadDashboardScript() {
+    const script = document.createElement("script");
+    script.src = "./chart.js";
+    document.body.appendChild(script);
+  }
+
+  discoverTradeImpactPaths()
+    .then(function (paths) {
+      window.TRADE_SANKEY_MANIFEST = buildManifestFromPaths(paths);
+    })
+    .catch(function () {
+      window.TRADE_SANKEY_MANIFEST = createDefaultManifest();
+    })
+    .finally(loadDashboardScript);
+}());
+</script>
 </body>
 </html>
