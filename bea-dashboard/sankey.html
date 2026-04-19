@@ -202,6 +202,12 @@
       Country:
       <select id="country-select"></select>
     </label>
+    <label id="other-country-wrap" hidden>
+      <span id="other-country-label">From:</span>
+      <select id="other-country">
+        <option value="">All</option>
+      </select>
+    </label>
     <label>
       Year:
       <select id="year-select"></select>
@@ -256,22 +262,31 @@
     <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
     &middot; labels from <code>year/[year]/industry.csv</code>
     &middot; currency rates from <code>concordance/eur_annual_rates.csv</code>
-    &middot; repo CSV: <code id="csv-path-label">year/.../trade_impact.csv</code>
+    &middot; Repo CSV: <code id="csv-path-label">year/[year]/[country]/[flow]/trade_impact.csv</code>
   </div>
 
 </div><!-- end .content.contentpadding -->
 
-<script src="https://cdn.jsdelivr.net/gh/savar25/trade-data@main/sankey-data.js"></script>
 <script>
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
-const manifest = window.TRADE_SANKEY_MANIFEST || {
-  countries: ["US"],
-  yearsByCountry: { US: ["2022"] },
-  flowsByCountryYear: { "US|2022": ["domestic"] },
-  defaultSelection: { country: "US", year: "2022", flow: "domestic" }
-};
+const REPO_OWNER = "savar25";
+const REPO_NAME = "trade-data";
+const REPO_BRANCH = "main";
+const SUPPORTED_FLOWS = ["domestic", "imports", "exports"];
+const TRADE_IMPACT_PATH_PATTERN = /^year\/([^/]+)\/([^/]+)\/(domestic|imports|exports)\/trade_impact\.csv$/;
+
+function createDefaultManifest() {
+  return {
+    countries: ["US"],
+    yearsByCountry: { US: ["2022"] },
+    flowsByCountryYear: { "US|2022": ["domestic"] },
+    defaultSelection: { country: "US", year: "2022", flow: "domestic" }
+  };
+}
+
+let manifest = createDefaultManifest();
 
 const METRICS = {
   CO2_total:        { label: "CO\u2082 Emissions",  unit: "Gt CO\u2082", scale: 1e12, sourceKeys: ["CO2_total"], scoreDirection: "lower" },
@@ -413,6 +428,9 @@ const SECTOR_NAMES = {
 // State
 // ---------------------------------------------------------------------------
 const countrySelect = document.getElementById("country-select");
+const otherCountryWrap = document.getElementById("other-country-wrap");
+const otherCountryLabel = document.getElementById("other-country-label");
+const otherCountrySelect = document.getElementById("other-country");
 const yearSelect = document.getElementById("year-select");
 const flowSelect = document.getElementById("flow-select");
 const metricSelect = document.getElementById("metric-select");
@@ -431,14 +449,17 @@ const partnerChartNote = document.getElementById("partner-chart-note");
 const partnerChartStatus = document.getElementById("partner-chart-status");
 const partnerChartDom = document.getElementById("partner-chart");
 const partnerChart = echarts.init(partnerChartDom);
-const csvCache = {};
 const industryNameByYear = {};
 const currencyRatesByYear = {};
 
 let availableCurrencyCodes = ["EUR"];
 let currencyRatesPromise = null;
+let manifestPromise = null;
 
 let rawData = null;
+let rawDataKey = "";
+let pendingDataKey = "";
+let selectionLoadToken = 0;
 let activeSelection = null;
 
 // ---------------------------------------------------------------------------
@@ -451,6 +472,204 @@ function normalizeCode(value) {
 function parseNumber(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function sortYears(years) {
+  return years.slice().sort(function (left, right) {
+    const leftNumber = Number(left);
+    const rightNumber = Number(right);
+    if (Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && leftNumber !== rightNumber) {
+      return leftNumber - rightNumber;
+    }
+    return String(left).localeCompare(String(right));
+  });
+}
+
+function repoRawPath(relativePath) {
+  return "https://raw.githubusercontent.com/" + REPO_OWNER + "/" + REPO_NAME + "/" + REPO_BRANCH + "/" + relativePath;
+}
+
+function repoLocalPath(relativePath) {
+  return "../" + relativePath;
+}
+
+function buildManifestFromPaths(paths) {
+  const discoveredCountries = new Set();
+  const yearsByCountry = {};
+  const flowsByCountryYear = {};
+
+  paths.forEach(function (path) {
+    const match = String(path || "").match(TRADE_IMPACT_PATH_PATTERN);
+    if (!match) {
+      return;
+    }
+
+    const year = normalizeCode(match[1]);
+    const country = normalizeCode(match[2]);
+    const flow = normalizeCode(match[3]);
+    if (!year || !country || !flow) {
+      return;
+    }
+
+    discoveredCountries.add(country);
+
+    if (!yearsByCountry[country]) {
+      yearsByCountry[country] = [];
+    }
+    if (!yearsByCountry[country].includes(year)) {
+      yearsByCountry[country].push(year);
+    }
+
+    const countryYearKey = country + "|" + year;
+    if (!flowsByCountryYear[countryYearKey]) {
+      flowsByCountryYear[countryYearKey] = [];
+    }
+    if (!flowsByCountryYear[countryYearKey].includes(flow)) {
+      flowsByCountryYear[countryYearKey].push(flow);
+    }
+  });
+
+  const countries = Array.from(discoveredCountries).sort();
+  countries.forEach(function (country) {
+    yearsByCountry[country] = sortYears(yearsByCountry[country] || []);
+  });
+  Object.keys(flowsByCountryYear).forEach(function (countryYearKey) {
+    flowsByCountryYear[countryYearKey].sort(function (left, right) {
+      return SUPPORTED_FLOWS.indexOf(left) - SUPPORTED_FLOWS.indexOf(right);
+    });
+  });
+
+  const fallback = createDefaultManifest();
+  const defaultCountry = countries.includes("US")
+    ? "US"
+    : (countries[0] || fallback.defaultSelection.country);
+  const defaultYears = yearsByCountry[defaultCountry] || [];
+  const defaultYear = defaultYears.length
+    ? defaultYears[defaultYears.length - 1]
+    : fallback.defaultSelection.year;
+  const defaultFlows = flowsByCountryYear[defaultCountry + "|" + defaultYear] || [];
+  const defaultFlow = defaultFlows.includes("domestic")
+    ? "domestic"
+    : (defaultFlows[0] || fallback.defaultSelection.flow);
+
+  return {
+    countries: countries.length ? countries : fallback.countries.slice(),
+    yearsByCountry: Object.keys(yearsByCountry).length ? yearsByCountry : fallback.yearsByCountry,
+    flowsByCountryYear: Object.keys(flowsByCountryYear).length ? flowsByCountryYear : fallback.flowsByCountryYear,
+    defaultSelection: {
+      country: defaultCountry,
+      year: defaultYear,
+      flow: defaultFlow
+    }
+  };
+}
+
+function sanitizeManifest(candidate) {
+  const fallback = createDefaultManifest();
+  if (!candidate || typeof candidate !== "object") {
+    return fallback;
+  }
+
+  const countries = Array.isArray(candidate.countries) && candidate.countries.length
+    ? candidate.countries.map(normalizeCode).filter(Boolean).sort()
+    : fallback.countries.slice();
+  const yearsByCountry = {};
+  countries.forEach(function (country) {
+    const years = candidate.yearsByCountry && Array.isArray(candidate.yearsByCountry[country])
+      ? candidate.yearsByCountry[country].map(normalizeCode).filter(Boolean)
+      : [];
+    yearsByCountry[country] = sortYears(years.length ? years : (fallback.yearsByCountry[country] || []));
+  });
+
+  const flowsByCountryYear = {};
+  countries.forEach(function (country) {
+    (yearsByCountry[country] || []).forEach(function (year) {
+      const key = country + "|" + year;
+      const flows = candidate.flowsByCountryYear && Array.isArray(candidate.flowsByCountryYear[key])
+        ? candidate.flowsByCountryYear[key].map(normalizeCode).filter(Boolean)
+        : [];
+      flowsByCountryYear[key] = flows.length
+        ? flows.sort(function (left, right) {
+            return SUPPORTED_FLOWS.indexOf(left) - SUPPORTED_FLOWS.indexOf(right);
+          })
+        : SUPPORTED_FLOWS.slice();
+    });
+  });
+
+  const defaultCountry = countries.includes(normalizeCode(candidate.defaultSelection && candidate.defaultSelection.country))
+    ? normalizeCode(candidate.defaultSelection.country)
+    : countries[0];
+  const defaultYears = yearsByCountry[defaultCountry] || [];
+  const defaultYear = defaultYears.includes(normalizeCode(candidate.defaultSelection && candidate.defaultSelection.year))
+    ? normalizeCode(candidate.defaultSelection.year)
+    : (defaultYears[defaultYears.length - 1] || fallback.defaultSelection.year);
+  const defaultFlows = flowsByCountryYear[defaultCountry + "|" + defaultYear] || SUPPORTED_FLOWS.slice();
+  const requestedDefaultFlow = normalizeCode(candidate.defaultSelection && candidate.defaultSelection.flow);
+  const defaultFlow = defaultFlows.includes(requestedDefaultFlow)
+    ? requestedDefaultFlow
+    : (defaultFlows.includes("domestic") ? "domestic" : defaultFlows[0] || fallback.defaultSelection.flow);
+
+  return {
+    countries: countries,
+    yearsByCountry: yearsByCountry,
+    flowsByCountryYear: flowsByCountryYear,
+    defaultSelection: {
+      country: defaultCountry,
+      year: defaultYear,
+      flow: defaultFlow
+    }
+  };
+}
+
+async function fetchJSON(url) {
+  const response = await fetch(url, {
+    headers: {
+      Accept: "application/json"
+    }
+  });
+  if (!response.ok) {
+    throw new Error("Unable to load " + url);
+  }
+  return response.json();
+}
+
+async function discoverTradeImpactPaths() {
+  const payload = await fetchJSON(
+    "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/git/trees/" + REPO_BRANCH + "?recursive=1"
+  );
+  const tree = Array.isArray(payload && payload.tree) ? payload.tree : [];
+  return tree
+    .filter(function (entry) {
+      return entry && entry.type === "blob" && TRADE_IMPACT_PATH_PATTERN.test(entry.path);
+    })
+    .map(function (entry) {
+      return entry.path;
+    });
+}
+
+async function loadManifest() {
+  if (manifestPromise) {
+    return manifestPromise;
+  }
+
+  manifestPromise = (async function () {
+    if (window.TRADE_SANKEY_MANIFEST) {
+      manifest = sanitizeManifest(window.TRADE_SANKEY_MANIFEST);
+      window.TRADE_SANKEY_MANIFEST = manifest;
+      return manifest;
+    }
+
+    try {
+      const paths = await discoverTradeImpactPaths();
+      manifest = buildManifestFromPaths(paths);
+    } catch (error) {
+      manifest = createDefaultManifest();
+    }
+    window.TRADE_SANKEY_MANIFEST = manifest;
+    return manifest;
+  })();
+
+  return manifestPromise;
 }
 
 function resolveIndustryNames(code) {
@@ -521,7 +740,8 @@ async function loadIndustryNamesForYear(year) {
   }
 
   const response = await fetchTextWithFallback([
-    "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + key + "/industry.csv"
+    repoLocalPath("year/" + key + "/industry.csv"),
+    repoRawPath("year/" + key + "/industry.csv")
   ]);
   if (!response || !response.text) {
     return;
@@ -546,7 +766,8 @@ async function loadCurrencyRates() {
 
   currencyRatesPromise = (async function () {
     const response = await fetchTextWithFallback([
-      "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/eur_annual_rates.csv"
+      repoLocalPath("concordance/eur_annual_rates.csv"),
+      repoRawPath("concordance/eur_annual_rates.csv")
     ]);
     if (!response || !response.text) {
       return;
@@ -717,6 +938,27 @@ function getMetricValue(row, metricKey) {
   return 0;
 }
 
+function formatSankeyEdgeTooltip(link, selectedMetricKey) {
+  const metricKey = METRICS[selectedMetricKey] ? selectedMetricKey : "amount";
+  const lines = [
+    "<b>" + displayIndustryName(link.source) + "</b> &rarr; <b>" + displayIndustryName(link.target) + "</b>",
+    METRICS[metricKey].label + ": <b>" + fmtValue(link.value, metricKey) + "</b>"
+  ];
+
+  Object.keys(METRICS).forEach(function (extraMetricKey) {
+    if (extraMetricKey === metricKey) {
+      return;
+    }
+    const extraValue = parseNumber(link[extraMetricKey]);
+    if (extraValue <= 0) {
+      return;
+    }
+    lines.push(METRICS[extraMetricKey].label + ": <b>" + fmtValue(extraValue, extraMetricKey) + "</b>");
+  });
+
+  return lines.join("<br/>");
+}
+
 function setStatus(msg, isError) {
   const status = document.getElementById("sankey-status");
   status.textContent = msg;
@@ -729,6 +971,11 @@ function setPartnerStatus(msg, isError) {
 }
 
 function syncControlVisibility() {
+  const flow = normalizeCode(flowSelect.value);
+  const isTradeMode = flow === "imports" || flow === "exports";
+  otherCountryWrap.hidden = !isTradeMode;
+  otherCountrySelect.disabled = !isTradeMode;
+  otherCountryLabel.textContent = flow === "exports" ? "To:" : "From:";
   if (!currencySelectLabel) {
     return;
   }
@@ -738,13 +985,14 @@ function syncControlVisibility() {
 function supportedFlows(country, year) {
   const key = normalizeCode(country) + "|" + normalizeCode(year);
   const flows = manifest.flowsByCountryYear && manifest.flowsByCountryYear[key];
-  return flows && flows.length ? flows.slice() : ["domestic", "imports", "exports"];
+  return flows && flows.length ? flows.slice() : SUPPORTED_FLOWS.slice();
 }
 
 function readHashState() {
   const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
   return {
     country: normalizeCode(params.get("country")) || manifest.defaultSelection.country,
+    otherCountry: normalizeCode(params.get("othercountry")) || "",
     year: normalizeCode(params.get("year")) || manifest.defaultSelection.year,
     flow: normalizeCode(params.get("flow")) || (manifest.defaultSelection.flow || "domestic"),
     metric: normalizeCode(params.get("metric")) || "CO2_total",
@@ -757,6 +1005,9 @@ function readHashState() {
 function writeHashState(state, replaceOnly) {
   const params = new URLSearchParams();
   params.set("country", state.country);
+  if (state.otherCountry) {
+    params.set("othercountry", state.otherCountry);
+  }
   params.set("year", state.year);
   params.set("flow", state.flow);
   params.set("metric", state.metric);
@@ -783,6 +1034,42 @@ function syncCountryOptions() {
     option.textContent = country;
     countrySelect.appendChild(option);
   });
+}
+
+function syncOtherCountryOptions(country, preferredOtherCountry, availablePartners) {
+  const selectedCountry = normalizeCode(country);
+  const preferred = normalizeCode(preferredOtherCountry);
+  const fallbackPartners = (manifest.countries || []).filter(function (code) {
+    return normalizeCode(code) && normalizeCode(code) !== selectedCountry;
+  });
+  const basePartners = (availablePartners && availablePartners.length ? availablePartners : fallbackPartners).slice();
+  if (preferred && preferred !== selectedCountry && basePartners.indexOf(preferred) === -1) {
+    basePartners.push(preferred);
+  }
+  const partners = basePartners
+    .map(normalizeCode)
+    .filter(function (code, index, array) {
+      return code && code !== selectedCountry && array.indexOf(code) === index;
+    })
+    .sort();
+
+  otherCountrySelect.innerHTML = "";
+
+  const allOption = document.createElement("option");
+  allOption.value = "";
+  allOption.textContent = "All";
+  otherCountrySelect.appendChild(allOption);
+
+  partners.forEach(function (partner) {
+    const option = document.createElement("option");
+    option.value = partner;
+    option.textContent = partner;
+    otherCountrySelect.appendChild(option);
+  });
+
+  const resolved = partners.includes(preferred) ? preferred : "";
+  otherCountrySelect.value = resolved;
+  return resolved;
 }
 
 function syncYearOptions(country, preferredYear) {
@@ -813,10 +1100,14 @@ function resolveSelection(state) {
   const country = manifest.countries.includes(state.country)
     ? state.country
     : manifest.defaultSelection.country;
+  const otherCountry = normalizeCode(state.otherCountry) === country
+    ? ""
+    : normalizeCode(state.otherCountry);
   syncYearOptions(country, state.year);
   const year = yearSelect.value || manifest.defaultSelection.year;
   syncFlowOptions(country, year, state.flow);
   const flow = flowSelect.value || manifest.defaultSelection.flow || "domestic";
+  const resolvedOtherCountry = syncOtherCountryOptions(country, otherCountry);
   const preferredCurrency = state.currency ||
     (state.metric === "amount_usd" ? "USD" : "EUR");
   syncCurrencyOptions(year, preferredCurrency);
@@ -830,6 +1121,7 @@ function resolveSelection(state) {
   const topn = Math.max(5, Math.min(50, state.topn || 15));
 
   countrySelect.value = country;
+  otherCountrySelect.value = flow === "domestic" ? "" : resolvedOtherCountry;
   yearSelect.value = year;
   flowSelect.value = flow;
   metricSelect.value = metric;
@@ -841,6 +1133,7 @@ function resolveSelection(state) {
 
   return {
     country: country,
+    otherCountry: flow === "domestic" ? "" : (otherCountrySelect.value || ""),
     year: year,
     flow: flow,
     metric: metric,
@@ -851,12 +1144,11 @@ function resolveSelection(state) {
 }
 
 function localCSVPath(selection) {
-  return rawCSVPath(selection);
+  return repoLocalPath("year/" + selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv");
 }
 
 function rawCSVPath(selection) {
-  return "https://raw.githubusercontent.com/savar25/trade-data/main/year/" +
-    selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv";
+  return repoRawPath("year/" + selection.year + "/" + selection.country + "/" + selection.flow + "/trade_impact.csv");
 }
 
 async function fetchTextWithFallback(paths) {
@@ -904,10 +1196,45 @@ function partnerCountryCode(row, selection) {
   return "";
 }
 
+function availablePartnerCountries(rows, selection) {
+  const partners = new Set();
+
+  (rows || []).forEach(function (row) {
+    const partner = partnerCountryCode(row, selection);
+    if (partner) {
+      partners.add(partner);
+    }
+  });
+
+  return Array.from(partners).sort();
+}
+
+function rowMatchesCountryPair(row, selection) {
+  const otherCountry = normalizeCode(selection && selection.otherCountry);
+  if (!otherCountry || !selection || selection.flow === "domestic") {
+    return true;
+  }
+
+  const selectedCountry = normalizeCode(selection.country);
+  const region1 = normalizeCode(row.region1);
+  const region2 = normalizeCode(row.region2);
+
+  return (
+    (region1 === selectedCountry && region2 === otherCountry) ||
+    (region1 === otherCountry && region2 === selectedCountry)
+  );
+}
+
+function rowsForSelection(selection) {
+  return (rawData || []).filter(function (row) {
+    return rowMatchesCountryPair(row, selection);
+  });
+}
+
 function buildPartnerBreakdown(metricKey, limit) {
   const byPartner = new Map();
 
-  rawData.forEach(function (row) {
+  rowsForSelection(activeSelection).forEach(function (row) {
     const partner = partnerCountryCode(row, activeSelection);
     if (!partner) {
       return;
@@ -976,43 +1303,59 @@ function buildPartnerBreakdown(metricKey, limit) {
 // Build Sankey data from rawData
 // ---------------------------------------------------------------------------
 function buildSankeyData(metricKey, topN) {
+  const metricKeys = Object.keys(METRICS);
   const flowMap = new Map();
-  for (const row of rawData) {
+  for (const row of rowsForSelection(activeSelection)) {
     const src = row.industry1;
     const tgt = row.industry2;
     if (!src || !tgt || src === tgt) continue;
     const val = getMetricValue(row, metricKey);
     if (!isFinite(val) || val <= 0) continue;
     const key = src + "\x00" + tgt;
-    flowMap.set(key, (flowMap.get(key) || 0) + val);
+    const current = flowMap.get(key) || {
+      source: normalizeCode(src),
+      target: normalizeCode(tgt),
+      value: 0
+    };
+    current.value += val;
+    metricKeys.forEach(function (extraMetricKey) {
+      current[extraMetricKey] = (current[extraMetricKey] || 0) + getMetricValue(row, extraMetricKey);
+    });
+    flowMap.set(key, current);
   }
 
   const resolvedMap = new Map();
-  for (const [key, val] of flowMap) {
+  for (const [key, linkData] of flowMap) {
     const sep = key.indexOf("\x00");
     const src = key.slice(0, sep);
     const tgt = key.slice(sep + 1);
     const revKey = tgt + "\x00" + src;
     if (resolvedMap.has(revKey)) {
-      if (val > resolvedMap.get(revKey)) {
+      if (linkData.value > resolvedMap.get(revKey).value) {
         resolvedMap.delete(revKey);
-        resolvedMap.set(key, val);
+        resolvedMap.set(key, linkData);
       }
     } else {
-      resolvedMap.set(key, val);
+      resolvedMap.set(key, linkData);
     }
   }
 
   let links = Array.from(resolvedMap.entries())
-    .sort((a, b) => b[1] - a[1])
+    .sort(function (a, b) {
+      return b[1].value - a[1].value;
+    })
     .slice(0, topN)
-    .map(([key, value]) => {
-      const sep = key.indexOf("\x00");
-      return {
-        source: normalizeCode(key.slice(0, sep)),
-        target: normalizeCode(key.slice(sep + 1)),
-        value: value
+    .map(function (entry) {
+      const linkData = entry[1];
+      const link = {
+        source: linkData.source,
+        target: linkData.target,
+        value: linkData.value
       };
+      metricKeys.forEach(function (extraMetricKey) {
+        link[extraMetricKey] = linkData[extraMetricKey] || 0;
+      });
+      return link;
     });
 
   links = removeCycles(links);
@@ -1107,12 +1450,7 @@ function render() {
       confine: true,
       formatter: function(params) {
         if (params.dataType === "edge") {
-          return (
-            "<b>" + displayIndustryName(params.data.source) + "</b>" +
-            " &rarr; " +
-            "<b>" + displayIndustryName(params.data.target) + "</b><br/>" +
-            metric.label + ": <b>" + fmtValue(params.data.value, activeSelection.metric) + "</b>"
-          );
+          return formatSankeyEdgeTooltip(params.data, activeSelection.metric);
         }
         return "<b>" + displayIndustryName(params.name) + "</b>";
       }
@@ -1170,7 +1508,8 @@ function render() {
 }
 
 function renderPartnerChart() {
-  if (!rawData || !activeSelection || activeSelection.flow === "domestic") {
+  const isPairFiltered = !!normalizeCode(activeSelection && activeSelection.otherCountry);
+  if (!rawData || !activeSelection || activeSelection.flow === "domestic" || isPairFiltered) {
     partnerChartPanel.hidden = true;
     partnerChart.clear();
     partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.";
@@ -1362,11 +1701,13 @@ function renderPartnerChart() {
 // ---------------------------------------------------------------------------
 async function loadSelection(selection) {
   activeSelection = selection;
-  const cacheKey = [
+  const selectionKey = [
     selection.country,
     selection.year,
     selection.flow
   ].join("|");
+  const loadToken = ++selectionLoadToken;
+  pendingDataKey = selectionKey;
 
   const localPath = localCSVPath(selection);
   const rawPath = rawCSVPath(selection);
@@ -1375,20 +1716,35 @@ async function loadSelection(selection) {
   setPartnerStatus("");
   setStatus("Loading data...", false);
 
-  if (!csvCache[cacheKey]) {
-    const response = await fetchTextWithFallback([localPath, rawPath]);
-    if (!response || !response.text) {
-      rawData = null;
-      chart.clear();
-      partnerChart.clear();
-      partnerChartPanel.hidden = selection.flow === "domestic";
-      setStatus("Error loading data for " + cacheKey + ".", true);
-      return;
-    }
-    csvCache[cacheKey] = d3.csvParse(response.text);
+  const response = await fetchTextWithFallback([localPath, rawPath]);
+  if (loadToken !== selectionLoadToken) {
+    return;
+  }
+  pendingDataKey = "";
+  if (!response || !response.text) {
+    rawData = null;
+    rawDataKey = "";
+    chart.clear();
+    partnerChart.clear();
+    partnerChartPanel.hidden = selection.flow === "domestic" || !!normalizeCode(selection.otherCountry);
+    setStatus("Error loading data for " + selectionKey + ".", true);
+    return;
   }
 
-  rawData = csvCache[cacheKey];
+  rawData = d3.csvParse(response.text);
+  const resolvedOtherCountry = syncOtherCountryOptions(
+    selection.country,
+    selection.otherCountry,
+    availablePartnerCountries(rawData, selection)
+  );
+  activeSelection = Object.assign({}, selection, {
+    otherCountry: selection.flow === "domestic" ? "" : resolvedOtherCountry
+  });
+  if ((selection.otherCountry || "") !== activeSelection.otherCountry) {
+    writeHashState(activeSelection, true);
+  }
+  rawDataKey = selectionKey;
+  writeHashState(activeSelection, true);
   render();
 }
 
@@ -1404,6 +1760,7 @@ function loadFromHash(replaceOnly) {
 function updateHashFromControls() {
   const selection = {
     country: countrySelect.value,
+    otherCountry: flowSelect.value === "domestic" ? "" : otherCountrySelect.value,
     year: yearSelect.value,
     flow: flowSelect.value,
     metric: metricSelect.value,
@@ -1416,16 +1773,17 @@ function updateHashFromControls() {
   topnLabel.textContent = String(selection.topn);
   syncControlVisibility();
   writeHashState(selection, false);
+  loadSelection(selection);
 }
 
 // ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
-syncCountryOptions();
 currencySelect.innerHTML = "<option value=\"EUR\">EUR - Euro</option>";
 syncControlVisibility();
 
 countrySelect.addEventListener("change", function() {
+  syncOtherCountryOptions(countrySelect.value, otherCountrySelect.value);
   syncYearOptions(countrySelect.value, yearSelect.value);
   syncFlowOptions(countrySelect.value, yearSelect.value, flowSelect.value);
   syncCurrencyOptions(yearSelect.value, currencySelect.value);
@@ -1438,7 +1796,23 @@ yearSelect.addEventListener("change", function() {
   updateHashFromControls();
 });
 
-flowSelect.addEventListener("change", updateHashFromControls);
+flowSelect.addEventListener("change", function() {
+  if (flowSelect.value === "domestic") {
+    otherCountrySelect.value = "";
+  }
+  syncControlVisibility();
+  updateHashFromControls();
+});
+
+otherCountrySelect.addEventListener("change", function() {
+  if (!activeSelection) {
+    updateHashFromControls();
+    return;
+  }
+  activeSelection.otherCountry = flowSelect.value === "domestic" ? "" : (otherCountrySelect.value || "");
+  writeHashState(activeSelection, false);
+  render();
+});
 
 metricSelect.addEventListener("change", function() {
   syncControlVisibility();
@@ -1493,6 +1867,24 @@ scoreHelpButton.addEventListener("click", function() {
 });
 
 window.addEventListener("hashchange", function() {
+  const selection = resolveSelection(readHashState());
+  const selectionKey = [
+    selection.country,
+    selection.year,
+    selection.flow
+  ].join("|");
+  if (activeSelection &&
+      activeSelection.country === selection.country &&
+      activeSelection.otherCountry === selection.otherCountry &&
+      activeSelection.year === selection.year &&
+      activeSelection.flow === selection.flow &&
+      activeSelection.metric === selection.metric &&
+      activeSelection.currency === selection.currency &&
+      activeSelection.industryLabelMode === selection.industryLabelMode &&
+      activeSelection.topn === selection.topn &&
+      (rawDataKey === selectionKey || pendingDataKey === selectionKey)) {
+    return;
+  }
   loadFromHash(false);
 });
 
@@ -1502,7 +1894,15 @@ window.addEventListener("resize", function() {
 });
 
 // Init
-loadCurrencyRates().finally(function () {
+Promise.all([
+  loadCurrencyRates(),
+  loadManifest()
+]).then(function () {
+  syncCountryOptions();
+  loadFromHash(true);
+}).catch(function () {
+  syncCountryOptions();
+  setStatus("Unable to discover the available trade_impact.csv datasets.", true);
   loadFromHash(true);
 });
 </script>

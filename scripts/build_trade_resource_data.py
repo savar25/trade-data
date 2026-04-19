@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "trade-resource-data.js"
 SUPPORTED_FLOWS = ("domestic", "imports", "exports")
 EXCLUDED_SOURCES = {"WHOLE", "CONST"}
-SOURCE_LIMIT = 5
+SOURCE_LIMIT = 15
 BASE_COLUMNS = {
     "trade_id",
     "year",
