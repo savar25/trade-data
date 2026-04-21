@@ -4,13 +4,30 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Worldwide Trade Impact And Resource Dashboard</title>
-<link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main/css/base.css" />
+<script>
+(function () {
+  const hostname = window.location.hostname || "";
+  const isFile = window.location.protocol === "file:";
+  const normalizedPath = (window.location.pathname || "").replace(/\\/g, "/");
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  const isGitHubPages = /\.github\.io$/i.test(hostname);
+  const firstPathSegment = normalizedPath.split("/").filter(Boolean)[0] || "";
+  const isTradeDataMirror = /\/trade-data\//i.test(normalizedPath) || firstPathSegment.toLowerCase() === "trade-data";
+  const localsiteBase = (isFile || isLocalhost || isTradeDataMirror)
+    ? "../localsite"
+    : "https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main";
+
+  window.TRADE_LOCALSITE_BASE = localsiteBase;
+
+  document.write('<link type="text/css" rel="stylesheet" href="' + localsiteBase + '/css/base.css" />');
+  document.write('<script type="text/javascript" src="' + localsiteBase + '/js/localsite.js?showheader=true&showsearch=true&showfilters=true"><\/script>');
+})();
+</script>
 <link
   rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   crossorigin=""
 >
-<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main/js/localsite.js?showheader=true&showsearch=true&showfilters=true"></script>
 <style>
   body {
     background: #fafbfc;
@@ -531,7 +548,7 @@
       </select>
     </div>
     <div class="control">
-      <label for="topn-slider">Top flows</label>
+      <label for="topn-slider">Inflows</label>
       <div>
         <input type="range" id="topn-slider" min="5" max="50" step="1" value="5">
         <span id="topn-label">5</span>
@@ -562,6 +579,7 @@ window.TRADE_DASHBOARD_CONFIG = {
   rawYearBasePath: "https://raw.githubusercontent.com/savar25/trade-data/main/year"
 };
 </script>
+<script src="./sankey-data.js"></script>
 <script src="./trade-resource-data.js"></script>
 <script
   src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -706,6 +724,11 @@ window.TRADE_DASHBOARD_CONFIG = {
     const script = document.createElement("script");
     script.src = "./chart.js";
     document.body.appendChild(script);
+  }
+
+  if (window.TRADE_SANKEY_MANIFEST) {
+    loadDashboardScript();
+    return;
   }
 
   discoverTradeImpactPaths()

@@ -3,10 +3,27 @@
 <head>
 <meta charset="utf-8">
 <title>Exiobase Industry Trade Flow Sankey</title>
-<link type="text/css" rel="stylesheet" href="https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main/css/base.css" />
-<script type="text/javascript" src="https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main/js/localsite.js?showheader=true&showsearch=true&showfilters=true"></script>
+<script>
+(function () {
+  const hostname = window.location.hostname || "";
+  const isFile = window.location.protocol === "file:";
+  const normalizedPath = (window.location.pathname || "").replace(/\\/g, "/");
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  const firstPathSegment = normalizedPath.split("/").filter(Boolean)[0] || "";
+  const isTradeDataMirror = /\/trade-data\//i.test(normalizedPath) || firstPathSegment.toLowerCase() === "trade-data";
+  const localsiteBase = (isFile || isLocalhost || isTradeDataMirror)
+    ? "../../localsite"
+    : "https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main";
+
+  window.TRADE_LOCALSITE_BASE = localsiteBase;
+
+  document.write('<link type="text/css" rel="stylesheet" href="' + localsiteBase + '/css/base.css" />');
+  document.write('<script type="text/javascript" src="' + localsiteBase + '/js/localsite.js?showheader=true&showsearch=true&showfilters=true"><\/script>');
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="../sankey-data.js"></script>
 <style>
   .content.contentpadding {
     width: 100%;
@@ -191,10 +208,10 @@
 
   <div id="score-help-panel" hidden>
     <p><strong>How the partner-country score works:</strong> the score ranks import/export partner countries from best to worst on a 0 to 100 scale.</p>
-    <p><strong>Amount Spent:</strong> score = 100 x partner trade value / largest partner trade value.</p>
+    <p><strong>Total Amount:</strong> score = 100 x partner trade value / largest partner trade value.</p>
     <p><strong>CO&#x2082; Emissions and Water Use:</strong> score = 100 x (0.6 x trade strength + 0.4 x lower impact per amount-spent efficiency).</p>
     <p><strong>Employment:</strong> score = 100 x (0.6 x trade strength + 0.4 x higher jobs per amount-spent efficiency).</p>
-    <p><strong>Trade strength</strong> is the partner&rsquo;s trade value relative to the largest partner. <strong>Efficiency</strong> compares indicator per amount spent across the visible partner-country set.</p>
+    <p><strong>Trade strength</strong> is the partner&rsquo;s trade value relative to the largest partner. <strong>Efficiency</strong> compares indicator per total amount across the visible partner-country set.</p>
   </div>
 
   <div id="sankey-controls">
@@ -219,10 +236,10 @@
     <label>
       Indicator:
       <select id="metric-select">
+        <option value="amount">Total Amount</option>
         <option value="CO2_total">CO&#x2082; Emissions</option>
         <option value="Water_total">Water Use</option>
         <option value="Employment_total">Employment</option>
-        <option value="amount">Amount Spent</option>
       </select>
     </label>
     <label id="currency-select-label">
@@ -238,7 +255,7 @@
       </select>
     </label>
     <label>
-      Top flows:
+      Inflows:
       <input type="range" id="topn-slider" min="5" max="50" step="1" value="15">
       <span id="topn-label">15</span>
     </label>
@@ -249,7 +266,7 @@
   <div id="partner-chart-panel" hidden>
     <h3 id="partner-chart-header">Top Partner Countries</h3>
     <p id="partner-chart-note">
-      Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.
+      Top 10 partner countries for the selected import/export view, showing the selected indicator alongside total amount.
     </p>
     <div id="partner-chart-status"></div>
     <div id="partner-chart"></div>
@@ -289,10 +306,10 @@ function createDefaultManifest() {
 let manifest = createDefaultManifest();
 
 const METRICS = {
+  amount:           { label: "Total Amount",        unit: "M EUR",       scale: 1,    sourceKeys: ["amount"], scoreDirection: "higher" },
   CO2_total:        { label: "CO\u2082 Emissions",  unit: "Gt CO\u2082", scale: 1e12, sourceKeys: ["CO2_total"], scoreDirection: "lower" },
   Water_total:      { label: "Water Use",           unit: "Gm\u00B3",    scale: 1e9,  sourceKeys: ["Water_total"], scoreDirection: "lower" },
-  Employment_total: { label: "Employment",          unit: "M jobs",      scale: 1e6,  sourceKeys: ["Employment_total", "Employment_people_total"], scoreDirection: "higher" },
-  amount:           { label: "Amount Spent",        unit: "M EUR",       scale: 1,    sourceKeys: ["amount"], scoreDirection: "higher" }
+  Employment_total: { label: "Employment",          unit: "M jobs",      scale: 1e6,  sourceKeys: ["Employment_total", "Employment_people_total"], scoreDirection: "higher" }
 };
 
 const INDUSTRY_LABEL_MODES = {
@@ -995,7 +1012,7 @@ function readHashState() {
     otherCountry: normalizeCode(params.get("othercountry")) || "",
     year: normalizeCode(params.get("year")) || manifest.defaultSelection.year,
     flow: normalizeCode(params.get("flow")) || (manifest.defaultSelection.flow || "domestic"),
-    metric: normalizeCode(params.get("metric")) || "CO2_total",
+    metric: normalizeCode(params.get("metric")) || "amount",
     currency: normalizeCode(params.get("currency")) || "",
     industryLabelMode: normalizeCode(params.get("labels")) || "title",
     topn: parseInt(params.get("topn"), 10) || 15
@@ -1117,7 +1134,7 @@ function resolveSelection(state) {
     : "title";
   const metric = METRICS[state.metric]
     ? state.metric
-    : ((state.metric === "amount_usd" || state.metric === "amount_eur") ? "amount" : "CO2_total");
+    : ((state.metric === "amount_usd" || state.metric === "amount_eur") ? "amount" : "amount");
   const topn = Math.max(5, Math.min(50, state.topn || 15));
 
   countrySelect.value = country;
@@ -1512,7 +1529,7 @@ function renderPartnerChart() {
   if (!rawData || !activeSelection || activeSelection.flow === "domestic" || isPairFiltered) {
     partnerChartPanel.hidden = true;
     partnerChart.clear();
-    partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.";
+    partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside total amount.";
     setPartnerStatus("");
     return;
   }
@@ -1526,14 +1543,14 @@ function renderPartnerChart() {
 
   if (!rows.length) {
     partnerChart.clear();
-    partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside amount spent.";
+    partnerChartNote.textContent = "Top 10 partner countries for the selected import/export view, showing the selected indicator alongside total amount.";
     setPartnerStatus("No partner-country data available for this selection.", true);
     return;
   }
 
   partnerChartNote.textContent = metricKey === "amount"
     ? "Countries are ranked from strongest to weakest by amount-spent score, scaled relative to the largest partner-country trade value."
-    : "Countries are ranked from best to worst using a score that blends 60% trade-value strength with 40% indicator efficiency per amount spent.";
+    : "Countries are ranked from best to worst using a score that blends 60% trade-value strength with 40% indicator efficiency per total amount.";
 
   const categories = rows.map(function (row) {
     return row.partner;
