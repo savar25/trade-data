@@ -13,11 +13,35 @@
   const isGitHubPages = /\.github\.io$/i.test(hostname);
   const firstPathSegment = normalizedPath.split("/").filter(Boolean)[0] || "";
   const isTradeDataMirror = /\/trade-data\//i.test(normalizedPath) || firstPathSegment.toLowerCase() === "trade-data";
-  const localsiteBase = (isFile || isLocalhost || isTradeDataMirror)
+  const repoRootMarkers = {
+    "": true,
+    "index.html": true,
+    "bea-dashboard": true,
+    "year": true,
+    "concordance": true,
+    "scripts": true,
+    "chart.js": true,
+    "sankey-data.js": true,
+    "trade-resource-data.js": true
+  };
+  const inferredPagesOwner = isGitHubPages
+    ? hostname.replace(/\.github\.io$/i, "")
+    : "";
+  const inferredPagesRepo = isGitHubPages
+    ? (repoRootMarkers[firstPathSegment.toLowerCase()] || /\.[a-z0-9]+$/i.test(firstPathSegment)
+      ? (inferredPagesOwner + ".github.io")
+      : firstPathSegment)
+    : "";
+  const localsiteBase = (isFile || isLocalhost || (isTradeDataMirror && !isGitHubPages))
     ? "../localsite"
     : "https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main";
 
   window.TRADE_LOCALSITE_BASE = localsiteBase;
+  window.TRADE_GITHUB_FALLBACK = window.TRADE_GITHUB_FALLBACK || {
+    owner: inferredPagesOwner || "savar25",
+    name: inferredPagesRepo || "trade-data",
+    branch: "main"
+  };
 
   document.write('<link type="text/css" rel="stylesheet" href="' + localsiteBase + '/css/base.css" />');
   document.write('<script type="text/javascript" src="' + localsiteBase + '/js/localsite.js?showheader=true&showsearch=true&showfilters=true"><\/script>');
@@ -574,10 +598,21 @@
 <div id="click-tooltip" class="tooltip is-click" aria-hidden="true"></div>
 
 <script>
-window.TRADE_DASHBOARD_CONFIG = {
-  yearBasePath: "./year",
-  rawYearBasePath: "https://raw.githubusercontent.com/savar25/trade-data/main/year"
-};
+(function () {
+  const repo = window.TRADE_GITHUB_FALLBACK || {
+    owner: "savar25",
+    name: "trade-data",
+    branch: "main"
+  };
+  const isFile = window.location.protocol === "file:";
+  const remoteBase = "https://raw.githubusercontent.com/" + repo.owner + "/" + repo.name + "/" + repo.branch;
+  window.TRADE_DASHBOARD_CONFIG = {
+    yearBasePath: "./year",
+    rawYearBasePath: isFile ? (remoteBase + "/year") : "./year",
+    concordanceBasePath: "./concordance",
+    rawConcordanceBasePath: isFile ? (remoteBase + "/concordance") : "./concordance"
+  };
+}());
 </script>
 <script src="./sankey-data.js"></script>
 <script src="./trade-resource-data.js"></script>
@@ -587,9 +622,14 @@ window.TRADE_DASHBOARD_CONFIG = {
 ></script>
 <script>
 (function () {
-  const REPO_OWNER = "savar25";
-  const REPO_NAME = "trade-data";
-  const REPO_BRANCH = "main";
+  const repo = window.TRADE_GITHUB_FALLBACK || {
+    owner: "savar25",
+    name: "trade-data",
+    branch: "main"
+  };
+  const REPO_OWNER = repo.owner;
+  const REPO_NAME = repo.name;
+  const REPO_BRANCH = repo.branch || "main";
   const SUPPORTED_FLOWS = ["domestic", "imports", "exports"];
   const TRADE_IMPACT_PATH_PATTERN = /^year\/([^/]+)\/([^/]+)\/(domestic|imports|exports)\/trade_impact\.csv$/;
 

@@ -367,11 +367,27 @@
     return "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + relativePath;
   }
 
+  function buildConcordancePath(relativePath) {
+    const configured = runtimeConfig.concordanceBasePath;
+    if (configured) {
+      return joinPath(configured, relativePath);
+    }
+    return "./concordance/" + relativePath;
+  }
+
+  function buildRawConcordancePath(relativePath) {
+    const configured = runtimeConfig.rawConcordanceBasePath;
+    if (configured) {
+      return joinPath(configured, relativePath);
+    }
+    return "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/" + relativePath;
+  }
+
   function currencyRatesPath() {
     if (runtimeConfig.currencyRatesPath) {
       return runtimeConfig.currencyRatesPath;
     }
-    return "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/eur_annual_rates.csv";
+    return buildRawConcordancePath("eur_annual_rates.csv");
   }
 
   async function fetchTextWithFallback(paths) {
@@ -421,8 +437,8 @@
     }
 
     countryLookupPromise = fetchTextWithFallback([
-      "./concordance/exio_country_concordance.csv",
-      "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/exio_country_concordance.csv"
+      buildConcordancePath("exio_country_concordance.csv"),
+      buildRawConcordancePath("exio_country_concordance.csv")
     ]).then(function (text) {
       if (!text) {
         return;
@@ -492,7 +508,7 @@
 
     currencyRatesPromise = fetchTextWithFallback([
       currencyRatesPath(),
-      "https://cdn.jsdelivr.net/gh/savar25/trade-data@main/concordance/eur_annual_rates.csv"
+      buildConcordancePath("eur_annual_rates.csv")
     ]).then(function (text) {
       if (!text) {
         return;
