@@ -38,7 +38,7 @@
     "Land_total",
     "impact_intensity"
   ];
-  const fallbackDefaultIndicators = ["CO2_total", "Employment_total"];
+  const fallbackDefaultIndicators = ["amount", "CO2_total"];
 
   if (!manifest || !chartGrid || !countrySelect || !yearSelect || !flowSelect || !hoverTooltip || !clickTooltip) {
     return;
@@ -367,11 +367,27 @@
     return "https://raw.githubusercontent.com/savar25/trade-data/main/year/" + relativePath;
   }
 
+  function buildConcordancePath(relativePath) {
+    const configured = runtimeConfig.concordanceBasePath;
+    if (configured) {
+      return joinPath(configured, relativePath);
+    }
+    return "./concordance/" + relativePath;
+  }
+
+  function buildRawConcordancePath(relativePath) {
+    const configured = runtimeConfig.rawConcordanceBasePath;
+    if (configured) {
+      return joinPath(configured, relativePath);
+    }
+    return "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/" + relativePath;
+  }
+
   function currencyRatesPath() {
     if (runtimeConfig.currencyRatesPath) {
       return runtimeConfig.currencyRatesPath;
     }
-    return "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/eur_annual_rates.csv";
+    return buildRawConcordancePath("eur_annual_rates.csv");
   }
 
   async function fetchTextWithFallback(paths) {
@@ -421,8 +437,8 @@
     }
 
     countryLookupPromise = fetchTextWithFallback([
-      "./concordance/exio_country_concordance.csv",
-      "https://raw.githubusercontent.com/savar25/trade-data/main/concordance/exio_country_concordance.csv"
+      buildConcordancePath("exio_country_concordance.csv"),
+      buildRawConcordancePath("exio_country_concordance.csv")
     ]).then(function (text) {
       if (!text) {
         return;
@@ -492,7 +508,7 @@
 
     currencyRatesPromise = fetchTextWithFallback([
       currencyRatesPath(),
-      "https://cdn.jsdelivr.net/gh/savar25/trade-data@main/concordance/eur_annual_rates.csv"
+      buildConcordancePath("eur_annual_rates.csv")
     ]).then(function (text) {
       if (!text) {
         return;
@@ -1359,7 +1375,7 @@
 
   function titleizeLabel(label) {
     const replacements = {
-      amount: "Amount Spent",
+      amount: "Total Amount",
       air_emissions: "Air Emissions",
       employment: "Employment",
       energy: "Energy",
@@ -1518,7 +1534,7 @@
       }
     }
     if (currencyControl) {
-      const selectedIndicators = selectedIndicatorValues();
+      const selectedIndicators = activeImpactIndicators();
       const isAmountSelected =
         (metricSelect && normalizeCode(metricSelect.value) === "amount") ||
         selectedIndicators.includes("amount");
@@ -1912,16 +1928,30 @@
   }
 
   function defaultIndicators() {
-    const defaults = sankeyData && Array.isArray(sankeyData.defaults) && sankeyData.defaults.length
-      ? sankeyData.defaults
+    const ordered = sankeyData && Array.isArray(sankeyData.defaults) && sankeyData.defaults.length
+      ? sankeyData.defaults.slice()
       : (manifest && Array.isArray(manifest.defaults) && manifest.defaults.length
-          ? manifest.defaults
-          : fallbackDefaultIndicators);
-    return defaults && defaults.length ? defaults.slice(0, 2) : indicatorColumns().slice(0, 2);
+          ? manifest.defaults.slice()
+          : fallbackDefaultIndicators.slice());
+    if (ordered.indexOf("amount") === -1 && indicatorColumns().indexOf("amount") !== -1) {
+      ordered.unshift("amount");
+    }
+    ordered.sort(function (left, right) {
+      if (left === right) { return 0; }
+      if (left === "amount") { return -1; }
+      if (right === "amount") { return 1; }
+      return left.localeCompare(right);
+    });
+    return ordered.slice(0, 2);
   }
 
   function setIndicatorOptions(select, selectedValue) {
-    const columns = indicatorColumns();
+    const columns = indicatorColumns().slice().sort(function (left, right) {
+      if (left === right) { return 0; }
+      if (left === "amount") { return -1; }
+      if (right === "amount") { return 1; }
+      return left.localeCompare(right);
+    });
     select.innerHTML = "";
     columns.forEach(function (column) {
       const option = document.createElement("option");
@@ -2170,7 +2200,7 @@
         legend.innerHTML =
           "<strong>Map Guide</strong>" +
           "<span>Zoom in to separate nearby trade partners.</span>" +
-          "<span>Bubble size shows amount spent. Orange halos mark regional aggregates.</span>";
+          "<span>Bubble size shows total amount. Orange halos mark regional aggregates.</span>";
         return legend;
       };
       legendControl.addTo(map);
@@ -2596,8 +2626,8 @@
 
     panelState.title.textContent = panelState.config.title + ": " + titleizeLabel(indicator);
     panelState.subtitle.textContent = indicator === "amount"
-      ? "Countries are ranked strongest to weakest by amount spent relative to the largest visible partner."
-      : "Score blends 60% trade-value strength with 40% indicator efficiency per amount spent, ranked best to worst.";
+      ? "Countries are ranked strongest to weakest by total amount relative to the largest visible partner."
+      : "Score blends 60% trade-value strength with 40% indicator efficiency per total amount, ranked best to worst.";
     panelState.svg.innerHTML = "";
 
     const strongestTrade = rows.slice().sort(function (left, right) {
@@ -2670,7 +2700,7 @@
       appendTitle(
         bar,
         countryLabelForCode(item.partner) + " score " + formatScore(item.score) +
-        "\nAmount Spent: " + formatAmountExact(item.amountValue) +
+        "\nTotal Amount: " + formatAmountExact(item.amountValue) +
         "\n" + titleizeLabel(indicator) + ": " + formatMetricExact(item.metricValue, indicator)
       );
       wireInteractiveMark(
@@ -2682,7 +2712,7 @@
             { label: "Indicator", value: titleizeLabel(indicator) },
             { label: "Partner", value: countryLabelForCode(item.partner) },
             { label: "Score", value: formatScore(item.score) + " / 100" },
-            { label: "Amount Spent", value: formatAmountExact(item.amountValue) }
+            { label: "Total Amount", value: formatAmountExact(item.amountValue) }
           ];
           if (indicator !== "amount") {
             rowsForHover.push({ label: titleizeLabel(indicator), value: formatMetricExact(item.metricValue, indicator) });
@@ -2698,7 +2728,7 @@
             { label: "Score", value: formatScore(item.score) + " / 100" },
             { label: "Trade Strength", value: formatPercent(item.tradeStrength) + " of largest partner" },
             { label: "Efficiency", value: formatPercent(item.impactEfficiency) + " normalized" },
-            { label: "Amount Spent", value: formatAmountExact(item.amountValue) }
+            { label: "Total Amount", value: formatAmountExact(item.amountValue) }
           ];
           if (indicator !== "amount") {
             rowsForClick.push({ label: titleizeLabel(indicator), value: formatMetricExact(item.metricValue, indicator) });
@@ -2849,7 +2879,7 @@
     if (panelState.mapLegendElement) {
       panelState.mapLegendElement.innerHTML =
         "<strong>Map Guide</strong>" +
-        "<span>Bubble size = amount spent in " + escapeHtml(selectedCurrency()) + ".</span>" +
+        "<span>Bubble size = total amount in " + escapeHtml(selectedCurrency()) + ".</span>" +
         "<span>Zoom in to separate nearby bubbles. Orange halos mark EXIO regional aggregates.</span>";
     }
 
@@ -2893,7 +2923,7 @@
       marker.bindPopup(
         leafletPopupHtml(row.name, [
           { label: "Selection", value: activeSelection.country + " / " + activeSelection.year + " / " + startCase(activeSelection.flow) },
-          { label: "Amount Spent", value: formatAmountExact(row.rawValue) },
+          { label: "Total Amount", value: formatAmountExact(row.rawValue) },
           { label: "Mapped Share", value: formatPercent(row.share) },
           { label: "Partner Code", value: row.code },
           { label: "Latitude", value: row.lat.toFixed(1) },
@@ -3030,7 +3060,7 @@
           titleizeLabel(indicator) + ": " + formatMetricExact(link.value, indicator),
           "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
-          "Amount Spent: " + formatAmountExact(link.amount),
+          "Total Amount: " + formatAmountExact(link.amount),
           "Total Impact Value: " + formatExact(link.total_impact_value)
         ];
         if (leader) {
@@ -3057,7 +3087,7 @@
           { label: "Importer", value: displayIndName(link.target) },
           { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
-          { label: "Amount Spent", value: formatAmountExact(link.amount) },
+          { label: "Total Amount", value: formatAmountExact(link.amount) },
           { label: "Value", value: formatMetricExact(link.value, indicator) },
           { label: "Impact", value: formatExact(link.total_impact_value) }
         ].concat(buildLeaderRows(leader, link, indicator));
@@ -3117,7 +3147,7 @@
           "Total Resources: " + formatExact(link.value),
           "Flow: " + flowLabel(link.source, link.target),
           "Trade ID: " + link.trade_id,
-          "Amount Spent: " + formatAmountExact(link.amount)
+          "Total Amount: " + formatAmountExact(link.amount)
         ].join("\n");
       },
       buildHoverRows: function (link) {
@@ -3134,7 +3164,7 @@
           { label: "Dataset", value: "trade_resource.csv" },
           { label: "Flow", value: flowLabel(link.source, link.target) },
           { label: "Trade ID", value: String(link.trade_id) },
-          { label: "Amount Spent", value: formatAmountExact(link.amount) },
+          { label: "Total Amount", value: formatAmountExact(link.amount) },
           { label: "Resources", value: formatExact(link.value) }
         ];
       }
@@ -3214,7 +3244,7 @@
         if (item.spotlight) {
           rows.push({ label: "Flow", value: flowLabel(item.spotlight.source, item.spotlight.target) });
           rows.push({ label: "Trade ID", value: String(item.spotlight.trade_id) });
-          rows.push({ label: "Amount Spent", value: formatAmountExact(item.spotlight.amount) });
+          rows.push({ label: "Total Amount", value: formatAmountExact(item.spotlight.amount) });
           rows.push({ label: "Spotlight Value", value: formatExact(item.spotlight.value) });
         }
 
