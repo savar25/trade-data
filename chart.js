@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   const manifest = window.TRADE_SANKEY_MANIFEST;
   const resourceManifest = window.TRADE_RESOURCE_DATA;
   const chartGrid = document.getElementById("chart-grid");
@@ -154,6 +154,41 @@
     NZD: "New Zealand Dollar",
     RUB: "Russian Rouble"
   };
+const CURRENCY_SYMBOLS = {
+  EUR: "\u20ac",
+  USD: "$",
+  JPY: "\u00a5",
+  GBP: "\u00a3",
+  CHF: "CHF ",
+  SEK: "kr ",
+  NOK: "kr ",
+  DKK: "kr ",
+  CZK: "K\u010d ",
+  PLN: "z\u0142 ",
+  HUF: "Ft ",
+  RON: "lei ",
+  HRK: "kn ",
+  BGN: "\u043b\u0432 ",
+  TRY: "\u20ba",
+  AUD: "A$",
+  CAD: "C$",
+  HKD: "HK$",
+  SGD: "S$",
+  KRW: "\u20a9",
+  ZAR: "R ",
+  MXN: "MX$",
+  INR: "\u20b9",
+  CNY: "\u00a5",
+  BRL: "R$",
+  IDR: "Rp ",
+  ILS: "\u20aa",
+  MYR: "RM ",
+  PHP: "\u20b1",
+  THB: "\u0e3f",
+  ISK: "kr ",
+  NZD: "NZ$",
+  RUB: "\u20bd"
+};
 
   let sankeyData = null;
   let selectedMark = null;
@@ -1476,18 +1511,21 @@
     return parseNumber(value) * currencyRateForYear(year, currencyCode);
   }
 
+  function currencySymbol(currencyCode) {
+    const normalized = normalizeCode(currencyCode).toUpperCase();
+    return CURRENCY_SYMBOLS[normalized] || (normalized ? normalized + " " : "");
+  }
+
   function formatAmountExact(value) {
     const currencyCode = selectedCurrency();
-    return currencyExactFormatter.format(
-      convertAmountValue(value, activeSelection && activeSelection.year, currencyCode)
-    ) + " " + currencyCode;
+    const numericValue = convertAmountValue(value, activeSelection && activeSelection.year, currencyCode) * 1e6;
+    return currencySymbol(currencyCode) + currencyExactFormatter.format(numericValue);
   }
 
   function formatAmountCompact(value) {
     const currencyCode = selectedCurrency();
-    return compactFormatter.format(
-      convertAmountValue(value, activeSelection && activeSelection.year, currencyCode)
-    ) + " " + currencyCode;
+    const numericValue = convertAmountValue(value, activeSelection && activeSelection.year, currencyCode) * 1e6;
+    return currencySymbol(currencyCode) + compactFormatter.format(numericValue);
   }
 
   function convertIntensityPerCurrency(value) {
@@ -1495,7 +1533,6 @@
     const rate = currencyRateForYear(activeSelection && activeSelection.year, currencyCode);
     return rate > 0 ? (parseNumber(value) / rate) : parseNumber(value);
   }
-
   function formatMetricExact(value, indicator) {
     if (indicator === "amount") {
       return formatAmountExact(value);
@@ -2911,7 +2948,7 @@
       }).addTo(panelState.mapBubbleLayer);
 
       marker.bindTooltip(
-        row.name + " • " + formatAmountExact(row.rawValue),
+        row.name + " â€¢ " + formatAmountExact(row.rawValue),
         {
           sticky: true,
           direction: "top",
@@ -3613,3 +3650,5 @@
     }
   }());
 }());
+
+
