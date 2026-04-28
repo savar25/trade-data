@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en-us">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>US State Trade Flow Sankey</title>
+<script>
+(function () {
+  const hostname = window.location.hostname || "";
+  const isFile = window.location.protocol === "file:";
+  const normalizedPath = (window.location.pathname || "").replace(/\\/g, "/");
+  const isLocalhost = hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  const isGitHubPages = /\.github\.io$/i.test(hostname);
+  const firstPathSegment = normalizedPath.split("/").filter(Boolean)[0] || "";
+  const isTradeDataMirror = /\/trade-data\//i.test(normalizedPath) || firstPathSegment.toLowerCase() === "trade-data";
+  const repoRootMarkers = {
+    "": true,
+    "index.html": true,
+    "bea-dashboard": true,
+    "state-dashboard": true,
+    "year": true,
+    "concordance": true,
+    "scripts": true,
+    "chart.js": true,
+    "sankey-data.js": true,
+    "trade-resource-data.js": true
+  };
+  const inferredPagesOwner = isGitHubPages
+    ? hostname.replace(/\.github\.io$/i, "")
+    : "";
+  const inferredPagesRepo = isGitHubPages
+    ? (repoRootMarkers[firstPathSegment.toLowerCase()] || /\.[a-z0-9]+$/i.test(firstPathSegment)
+      ? (inferredPagesOwner + ".github.io")
+      : firstPathSegment)
+    : "";
+  const localsiteBase = (isFile || isLocalhost || (isTradeDataMirror && !isGitHubPages))
+    ? "../../localsite"
+    : "https://cdn.jsdelivr.net/gh/ModelEarth/localsite@main";
+
+  window.TRADE_LOCALSITE_BASE = localsiteBase;
+  window.TRADE_GITHUB_FALLBACK = window.TRADE_GITHUB_FALLBACK || {
+    owner: inferredPagesOwner || "savar25",
+    name: inferredPagesRepo || "trade-data",
+    branch: "main"
+  };
+
+  document.write('<link type="text/css" rel="stylesheet" href="' + localsiteBase + '/css/base.css" />');
+  document.write('<script type="text/javascript" src="' + localsiteBase + '/js/localsite.js?showheader=true&showsearch=true&showfilters=true"><\/script>');
+}());
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+<style>
+  .content.contentpadding {
+    width: 100%;
+    max-width: none !important;
+    margin: 0 auto;
+    padding: 0 10px;
+    box-sizing: border-box;
+  }
+  .sankey-page-header {
+    margin: 1em 0 0.25em;
+  }
+  .sankey-page-header h2 {
+    margin: 0 0 0.2em;
+    font-size: 1.5em;
+  }
+  .sankey-page-header p {
+    margin: 0 0 1em;
+    color: #555;
+    font-size: 0.95em;
+  }
+  .sankey-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75em;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  #state-help-button {
+    padding: 0.45em 0.8em;
+    border: 1px solid #cfd6df;
+    border-radius: 999px;
+    background: #fff;
+    color: #1f2937;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #state-help-button:hover {
+    background: #f8fafc;
+  }
+  #state-help-panel {
+    margin: 0 0 1em;
+    padding: 0.85em 1em;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #334155;
+    font-size: 0.92em;
+    line-height: 1.55;
+  }
+  #state-help-panel[hidden] {
+    display: none;
+  }
+  #state-help-panel p {
+    margin: 0 0 0.45em;
+  }
+  #state-help-panel p:last-child {
+    margin-bottom: 0;
+  }
+  #sankey-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5em;
+    align-items: center;
+    padding: 0.75em 1em;
+    background: #f4f6f8;
+    border: 1px solid #dde1e7;
+    border-radius: 6px;
+    margin-bottom: 0.75em;
+  }
+  #sankey-controls label {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-size: 0.93em;
+    color: #333;
+  }
+  #sankey-controls select {
+    padding: 0.25em 0.5em;
+    font-size: 0.93em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background: #fff;
+  }
+  #sankey-controls input[type=range] {
+    width: 120px;
+    cursor: pointer;
+  }
+  #topn-label {
+    font-weight: 600;
+    min-width: 2em;
+    text-align: right;
+  }
+  #sankey-status,
+  #partner-chart-status,
+  #state-summary-status {
+    font-size: 0.88em;
+    color: #666;
+    font-style: italic;
+    margin: 0 0 0.5em;
+    min-height: 1.3em;
+  }
+  #sankey-chart {
+    width: 100%;
+    height: 760px;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    border: 1px solid #e8eaed;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .dashboard-grid {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(320px, 1fr);
+    gap: 1.25em;
+    margin-top: 1.25em;
+  }
+  @media (max-width: 980px) {
+    .dashboard-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .panel-card {
+    border: 1px solid #dde1e7;
+    border-radius: 8px;
+    background: #fff;
+    padding: 1rem;
+  }
+  .panel-card h3 {
+    margin: 0 0 0.35em;
+    font-size: 1.1em;
+  }
+  .panel-card p {
+    margin: 0 0 0.65em;
+    color: #555;
+    font-size: 0.92em;
+  }
+  #partner-chart {
+    width: 100%;
+    height: 420px;
+  }
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75em;
+    margin-top: 0.75em;
+  }
+  .summary-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    padding: 0.85em 0.9em;
+  }
+  .summary-card strong {
+    display: block;
+    font-size: 0.82em;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 0.35em;
+  }
+  .summary-card span {
+    font-size: 1.08em;
+    color: #0f172a;
+    font-weight: 700;
+  }
+  .tag-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5em;
+    margin-top: 0.75em;
+  }
+  .tag-pill {
+    padding: 0.35em 0.65em;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 0.84em;
+    font-weight: 600;
+  }
+  #sankey-attribution {
+    margin-top: 1em;
+    padding-top: 0.75em;
+    border-top: 1px solid #dde1e7;
+    font-size: 0.85em;
+    color: #666;
+    line-height: 1.8;
+  }
+  #sankey-attribution a {
+    color: #2563eb;
+    text-decoration: none;
+  }
+  #sankey-attribution a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+<div class="content contentpadding">
+
+  <div class="sankey-page-header">
+    <div class="sankey-header-row">
+      <div>
+        <h2>US State Trade Flow Sankey</h2>
+        <p>
+          Domestic inter-state trade flows for the United States, using the state-only trade, impact, code, and specialization CSVs from the repo.
+        </p>
+      </div>
+      <button id="state-help-button" type="button" aria-expanded="false" aria-controls="state-help-panel">About This View</button>
+    </div>
+  </div>
+
+  <div id="state-help-panel" hidden>
+    <p><strong>What this page shows:</strong> a state-to-state Sankey for US domestic flows in 2019, filtered by industry and direction.</p>
+    <p><strong>Trade Level</strong> uses the <code>level</code> column from <code>state_trade_flows.csv</code>. <strong>Employment Impact</strong> uses <code>employment_impact</code>.</p>
+    <p><strong>Summary cards</strong> come from <code>state_industry_impacts.csv</code> for the selected state and industry. <strong>Specializations</strong> come from <code>state_specializations.csv</code>.</p>
+  </div>
+
+  <div id="sankey-controls">
+    <label>
+      State:
+      <select id="state-select"></select>
+    </label>
+    <label id="partner-state-wrap" hidden>
+      <span id="partner-state-label">To:</span>
+      <select id="partner-state-select">
+        <option value="">All</option>
+      </select>
+    </label>
+    <label>
+      Year:
+      <select id="year-select" disabled></select>
+    </label>
+    <label>
+      Direction:
+      <select id="direction-select">
+        <option value="outbound">Outbound</option>
+        <option value="inbound">Inbound</option>
+      </select>
+    </label>
+    <label>
+      Trade Type:
+      <select id="flow-type-select"></select>
+    </label>
+    <label>
+      Industry:
+      <select id="industry-select"></select>
+    </label>
+    <label>
+      Indicator:
+      <select id="metric-select">
+        <option value="level">Trade Level</option>
+        <option value="employment_impact">Employment Impact</option>
+      </select>
+    </label>
+    <label>
+      State labels:
+      <select id="state-label-select">
+        <option value="name">Name</option>
+        <option value="code">Code</option>
+        <option value="both">Name + Code</option>
+      </select>
+    </label>
+    <label>
+      Links:
+      <input type="range" id="topn-slider" min="5" max="80" step="1" value="20">
+      <span id="topn-label">20</span>
+    </label>
+  </div>
+
+  <div id="sankey-status">Loading state trade data...</div>
+  <div id="sankey-chart"></div>
+
+  <div class="dashboard-grid">
+    <section class="panel-card">
+      <h3 id="partner-chart-header">Top Partner States</h3>
+      <p id="partner-chart-note">Partner ranking for the selected state, based on the active direction, industry filter, and metric.</p>
+      <div id="partner-chart-status"></div>
+      <div id="partner-chart"></div>
+    </section>
+
+    <section class="panel-card">
+      <h3 id="state-summary-header">State Impact Summary</h3>
+      <p id="state-summary-note">Selected state impact totals from <code>state_industry_impacts.csv</code>, with specialization tags from <code>state_specializations.csv</code>.</p>
+      <div id="state-summary-status"></div>
+      <div id="state-summary-body"></div>
+    </section>
+  </div>
+
+  <div id="sankey-attribution">
+    <strong>Data source:</strong>
+    <a href="https://github.com/savar25/trade-data" target="_blank" rel="noopener">savar25/trade-data</a>
+    &middot; country fixed to <code>US</code>
+    &middot; year fixed to <code>2019</code>
+    &middot; flow fixed to <code>domestic</code>
+    &middot; Sankey edges from <code id="trade-path-label">year/2019/US/domestic/state_trade_flows.csv</code>
+    &middot; impact cards from <code>year/2019/US/domestic/state_industry_impacts.csv</code>
+    &middot; state names from <code>year/2019/US/domestic/state_codes.csv</code>
+    &middot; specialization tags from <code>year/2019/US/domestic/state_specializations.csv</code>
+  </div>
+
+</div>
+
+<script>
+const repo = window.TRADE_GITHUB_FALLBACK || {
+  owner: "savar25",
+  name: "trade-data",
+  branch: "main"
+};
+
+const COUNTRY_CODE = "US";
+const YEAR = "2019";
+const FLOW = "domestic";
+const DATASET_ROOT = "year/" + YEAR + "/" + COUNTRY_CODE + "/" + FLOW + "/";
+const TRADE_FLOW_FILE = "state_trade_flows.csv";
+const STATE_CODES_FILE = "state_codes.csv";
+const IMPACT_FILE = "state_industry_impacts.csv";
+const SPECIALIZATION_FILE = "state_specializations.csv";
+
+const METRICS = {
+  level: {
+    label: "Trade Level",
+    key: "level",
+    unit: "level"
+  },
+  employment_impact: {
+    label: "Employment Impact",
+    key: "employment_impact",
+    unit: "jobs"
+  }
+};
+
+const IMPACT_SUMMARY_FIELDS = [
+  { key: "direct_jobs", label: "Direct Jobs" },
+  { key: "indirect_jobs", label: "Indirect Jobs" },
+  { key: "induced_jobs", label: "Induced Jobs" },
+  { key: "total_output_impact", label: "Output Impact" },
+  { key: "tax_revenue_impact", label: "Tax Revenue" }
+];
+
+const chart = echarts.init(document.getElementById("sankey-chart"));
+const partnerChart = echarts.init(document.getElementById("partner-chart"));
+
+const stateSelect = document.getElementById("state-select");
+const partnerStateWrap = document.getElementById("partner-state-wrap");
+const partnerStateLabel = document.getElementById("partner-state-label");
+const partnerStateSelect = document.getElementById("partner-state-select");
+const yearSelect = document.getElementById("year-select");
+const directionSelect = document.getElementById("direction-select");
+const flowTypeSelect = document.getElementById("flow-type-select");
+const industrySelect = document.getElementById("industry-select");
+const metricSelect = document.getElementById("metric-select");
+const stateLabelSelect = document.getElementById("state-label-select");
+const topnSlider = document.getElementById("topn-slider");
+const topnLabel = document.getElementById("topn-label");
+const stateHelpButton = document.getElementById("state-help-button");
+const stateHelpPanel = document.getElementById("state-help-panel");
+const sankeyStatus = document.getElementById("sankey-status");
+const partnerChartHeader = document.getElementById("partner-chart-header");
+const partnerChartNote = document.getElementById("partner-chart-note");
+const partnerChartStatus = document.getElementById("partner-chart-status");
+const stateSummaryHeader = document.getElementById("state-summary-header");
+const stateSummaryNote = document.getElementById("state-summary-note");
+const stateSummaryStatus = document.getElementById("state-summary-status");
+const stateSummaryBody = document.getElementById("state-summary-body");
+
+let stateCodes = [];
+let stateNameByCode = {};
+let specializationsByState = {};
+let impactRows = [];
+let aggregatedFlows = [];
+let availableStates = [];
+let availableIndustries = [];
+let availableFlowTypes = [];
+let activeSelection = null;
+
+function normalizeCode(value) {
+  return String(value || "").trim();
+}
+
+function parseNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function titleCase(value) {
+  return String(value || "")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, function (char) {
+      return char.toUpperCase();
+    });
+}
+
+function repoLocalPath(relativePath) {
+  return "../" + relativePath;
+}
+
+function repoRawPath(relativePath) {
+  if (window.location.protocol !== "file:") {
+    return repoLocalPath(relativePath);
+  }
+  return "https://raw.githubusercontent.com/" + repo.owner + "/" + repo.name + "/" + (repo.branch || "main") + "/" + relativePath;
+}
+
+function dataLocalPath(filename) {
+  return repoLocalPath(DATASET_ROOT + filename);
+}
+
+function dataRawPath(filename) {
+  return repoRawPath(DATASET_ROOT + filename);
+}
+
+async function fetchTextWithFallback(paths) {
+  for (let index = 0; index < paths.length; index += 1) {
+    const path = paths[index];
+    if (!path) {
+      continue;
+    }
+    try {
+      const response = await fetch(path);
+      if (!response.ok) {
+        continue;
+      }
+      return await response.text();
+    } catch (error) {
+      continue;
+    }
+  }
+  return null;
+}
+
+function parseDelimitedLine(line) {
+  return String(line || "").split(",");
+}
+
+function parseSmallCsv(text) {
+  const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+  if (lines.length < 2) {
+    return [];
+  }
+  const headers = parseDelimitedLine(lines[0]);
+  const rows = [];
+  for (let index = 1; index < lines.length; index += 1) {
+    const values = parseDelimitedLine(lines[index]);
+    const row = {};
+    headers.forEach(function (header, headerIndex) {
+      row[header] = values[headerIndex] || "";
+    });
+    rows.push(row);
+  }
+  return rows;
+}
+
+function parseTradeFlows(text) {
+  const lines = String(text || "").trim().split(/\r?\n/).filter(Boolean);
+  const aggregate = new Map();
+  const states = new Set();
+  const industries = new Set();
+  const flowTypes = new Set();
+
+  for (let index = 1; index < lines.length; index += 1) {
+    const values = parseDelimitedLine(lines[index]);
+    const origin = normalizeCode(values[1]);
+    const destination = normalizeCode(values[2]);
+    const industry = normalizeCode(values[3]);
+    const level = parseNumber(values[4]);
+    const flowType = normalizeCode(values[5]);
+    const employmentImpact = parseNumber(values[6]);
+
+    if (!origin || !destination || !industry) {
+      continue;
+    }
+
+    const key = [origin, destination, industry, flowType].join("\x00");
+    const current = aggregate.get(key) || {
+      origin_state: origin,
+      destination_state: destination,
+      state_industry_code: industry,
+      flow_type: flowType,
+      level: 0,
+      employment_impact: 0
+    };
+
+    current.level += level;
+    current.employment_impact += employmentImpact;
+
+    aggregate.set(key, current);
+    states.add(origin);
+    states.add(destination);
+    industries.add(industry);
+    if (flowType) {
+      flowTypes.add(flowType);
+    }
+  }
+
+  return {
+    rows: Array.from(aggregate.values()),
+    states: Array.from(states).sort(),
+    industries: Array.from(industries).sort(),
+    flowTypes: Array.from(flowTypes).sort()
+  };
+}
+
+function parseStateCodes(text) {
+  stateCodes = parseSmallCsv(text);
+  stateNameByCode = {};
+  stateCodes.forEach(function (row) {
+    const code = normalizeCode(row.state_code);
+    if (code) {
+      stateNameByCode[code] = String(row.state_name || code).trim();
+    }
+  });
+}
+
+function parseImpactRows(text) {
+  impactRows = parseSmallCsv(text).map(function (row) {
+    return {
+      state_code: normalizeCode(row.state_code),
+      industry_code: normalizeCode(row.industry_code),
+      direct_jobs: parseNumber(row.direct_jobs),
+      indirect_jobs: parseNumber(row.indirect_jobs),
+      induced_jobs: parseNumber(row.induced_jobs),
+      total_output_impact: parseNumber(row.total_output_impact),
+      tax_revenue_impact: parseNumber(row.tax_revenue_impact)
+    };
+  });
+}
+
+function parseSpecializations(text) {
+  specializationsByState = {};
+  parseSmallCsv(text).forEach(function (row) {
+    const code = normalizeCode(row.state_code);
+    const specialization = normalizeCode(row.specialization);
+    if (!code || !specialization) {
+      return;
+    }
+    if (!specializationsByState[code]) {
+      specializationsByState[code] = [];
+    }
+    specializationsByState[code].push(titleCase(specialization));
+  });
+}
+
+function stateLabel(code) {
+  const normalized = normalizeCode(code);
+  const name = stateNameByCode[normalized] || normalized;
+  const mode = activeSelection ? activeSelection.stateLabelMode : "name";
+  if (mode === "code") {
+    return normalized;
+  }
+  if (mode === "both") {
+    return name + " (" + normalized + ")";
+  }
+  return name;
+}
+
+function industryLabel(code) {
+  if (!code) {
+    return "All industries";
+  }
+  return titleCase(code);
+}
+
+function metricUnit(metricKey) {
+  return METRICS[metricKey] ? METRICS[metricKey].unit : "";
+}
+
+function fmtNumber(value) {
+  const absolute = Math.abs(value);
+  if (absolute >= 1e9) {
+    return (value / 1e9).toFixed(2).replace(/\.00$/, "") + "B";
+  }
+  if (absolute >= 1e6) {
+    return (value / 1e6).toFixed(2).replace(/\.00$/, "") + "M";
+  }
+  if (absolute >= 1e3) {
+    return (value / 1e3).toFixed(2).replace(/\.00$/, "") + "K";
+  }
+  if (absolute === 0) {
+    return "0";
+  }
+  if (absolute >= 1) {
+    return value.toFixed(2).replace(/\.00$/, "");
+  }
+  if (absolute >= 0.01) {
+    return value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  }
+  return value.toExponential(2);
+}
+
+function fmtMetricValue(value, metricKey) {
+  const unit = metricUnit(metricKey);
+  return fmtNumber(value) + (unit ? " " + unit : "");
+}
+
+function setStatus(message, isError) {
+  sankeyStatus.textContent = message;
+  sankeyStatus.style.color = isError ? "#b42318" : "#666";
+}
+
+function setPartnerStatus(message, isError) {
+  partnerChartStatus.textContent = message;
+  partnerChartStatus.style.color = isError ? "#b42318" : "#666";
+}
+
+function setSummaryStatus(message, isError) {
+  stateSummaryStatus.textContent = message;
+  stateSummaryStatus.style.color = isError ? "#b42318" : "#666";
+}
+
+function syncStaticOptions() {
+  yearSelect.innerHTML = '<option value="2019">2019</option>';
+}
+
+function sortStates(codes) {
+  return codes.slice().sort(function (left, right) {
+    return stateLabel(left).localeCompare(stateLabel(right));
+  });
+}
+
+function syncStateOptions(selected) {
+  const options = ['<option value="">All states</option>'].concat(
+    sortStates(availableStates).map(function (code) {
+      return '<option value="' + code + '">' + stateLabel(code) + '</option>';
+    })
+  );
+  stateSelect.innerHTML = options.join("");
+  stateSelect.value = availableStates.includes(selected) ? selected : "";
+}
+
+function rowsForSelection(selection, options) {
+  const ignoreField = options && options.ignoreField;
+  return aggregatedFlows.filter(function (row) {
+    if (ignoreField !== "flowType" && selection.flowType && row.flow_type !== selection.flowType) {
+      return false;
+    }
+    if (ignoreField !== "industry" && selection.industry && row.state_industry_code !== selection.industry) {
+      return false;
+    }
+    if (selection.state) {
+      if (selection.direction === "inbound" && row.destination_state !== selection.state) {
+        return false;
+      }
+      if (selection.direction === "outbound" && row.origin_state !== selection.state) {
+        return false;
+      }
+    }
+    if (ignoreField !== "partnerState" && selection.partnerState) {
+      if (selection.direction === "inbound" && row.origin_state !== selection.partnerState) {
+        return false;
+      }
+      if (selection.direction === "outbound" && row.destination_state !== selection.partnerState) {
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+function syncPartnerStateOptions(selectedState, selectedPartner, selection) {
+  if (!selectedState) {
+    partnerStateWrap.hidden = true;
+    partnerStateSelect.innerHTML = '<option value="">All</option>';
+    partnerStateSelect.value = "";
+    return "";
+  }
+
+  const nextLabel = directionSelect.value === "inbound" ? "From:" : "To:";
+  partnerStateLabel.textContent = nextLabel;
+  partnerStateWrap.hidden = false;
+
+  const partnerRows = rowsForSelection(selection, { ignoreField: "partnerState" });
+  const partnerOptions = new Set();
+  partnerRows.forEach(function (row) {
+    const code = selection.direction === "inbound" ? row.origin_state : row.destination_state;
+    if (code && code !== selectedState) {
+      partnerOptions.add(code);
+    }
+  });
+
+  const options = ['<option value="">All</option>'].concat(
+    sortStates(Array.from(partnerOptions)).map(function (code) {
+      return '<option value="' + code + '">' + stateLabel(code) + '</option>';
+    })
+  );
+  partnerStateSelect.innerHTML = options.join("");
+  partnerStateSelect.value = normalizeCode(selectedPartner);
+  if (partnerStateSelect.value !== normalizeCode(selectedPartner)) {
+    partnerStateSelect.value = "";
+  }
+  return partnerStateSelect.value;
+}
+
+function syncFlowTypeOptions(selected, selection) {
+  const flowTypeRows = rowsForSelection(selection, { ignoreField: "flowType" });
+  const flowTypeOptions = Array.from(new Set(flowTypeRows.map(function (row) {
+    return row.flow_type;
+  }).filter(Boolean))).sort();
+  flowTypeSelect.innerHTML = ['<option value="">All</option>'].concat(
+    flowTypeOptions.map(function (flowType) {
+      return '<option value="' + flowType + '">' + titleCase(flowType) + '</option>';
+    })
+  ).join("");
+  flowTypeSelect.value = normalizeCode(selected);
+  if (flowTypeSelect.value !== normalizeCode(selected)) {
+    flowTypeSelect.value = "";
+  }
+}
+
+function syncIndustryOptions(selected, selection) {
+  const industryRows = rowsForSelection(selection, { ignoreField: "industry" });
+  const industryOptions = Array.from(new Set(industryRows.map(function (row) {
+    return row.state_industry_code;
+  }).filter(Boolean))).sort();
+  industrySelect.innerHTML = ['<option value="">All industries</option>'].concat(
+    industryOptions.map(function (industry) {
+      return '<option value="' + industry + '">' + industryLabel(industry) + '</option>';
+    })
+  ).join("");
+  industrySelect.value = normalizeCode(selected);
+  if (industrySelect.value !== normalizeCode(selected)) {
+    industrySelect.value = "";
+  }
+}
+
+function readHashState() {
+  const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  return {
+    state: normalizeCode(params.get("state")),
+    partnerState: normalizeCode(params.get("partner")),
+    direction: normalizeCode(params.get("direction")) || "outbound",
+    flowType: normalizeCode(params.get("trade_type")),
+    industry: normalizeCode(params.get("industry")),
+    metric: normalizeCode(params.get("metric")) || "level",
+    stateLabelMode: normalizeCode(params.get("labels")) || "name",
+    topn: parseInt(params.get("topn"), 10) || 20
+  };
+}
+
+function writeHashState(selection, replaceOnly) {
+  const params = new URLSearchParams();
+  if (selection.state) params.set("state", selection.state);
+  if (selection.partnerState) params.set("partner", selection.partnerState);
+  if (selection.direction && selection.direction !== "outbound") params.set("direction", selection.direction);
+  if (selection.flowType) params.set("trade_type", selection.flowType);
+  if (selection.industry) params.set("industry", selection.industry);
+  if (selection.metric && selection.metric !== "level") params.set("metric", selection.metric);
+  if (selection.stateLabelMode && selection.stateLabelMode !== "name") params.set("labels", selection.stateLabelMode);
+  if (selection.topn && selection.topn !== 20) params.set("topn", String(selection.topn));
+
+  const hash = params.toString();
+  if (replaceOnly) {
+    history.replaceState(null, "", hash ? "#" + hash : window.location.pathname + window.location.search);
+    return;
+  }
+  window.location.hash = hash;
+}
+
+function resolveSelection(candidate) {
+  const requestedState = normalizeCode(candidate.state);
+  const state = requestedState
+    ? (availableStates.includes(requestedState) ? requestedState : "")
+    : "";
+  const direction = candidate.direction === "inbound" ? "inbound" : "outbound";
+  const flowType = availableFlowTypes.includes(candidate.flowType) ? candidate.flowType : "";
+  const industry = availableIndustries.includes(candidate.industry) ? candidate.industry : "";
+  const metric = METRICS[candidate.metric] ? candidate.metric : "level";
+  const stateLabelMode = ["name", "code", "both"].includes(candidate.stateLabelMode) ? candidate.stateLabelMode : "name";
+  const topn = Math.max(5, Math.min(80, parseInt(candidate.topn, 10) || 20));
+  const validPartner = availableStates.includes(candidate.partnerState) && candidate.partnerState !== state
+    ? candidate.partnerState
+    : "";
+
+  return {
+    country: COUNTRY_CODE,
+    year: YEAR,
+    flow: FLOW,
+    state: state,
+    partnerState: validPartner,
+    direction: direction,
+    flowType: flowType,
+    industry: industry,
+    metric: metric,
+    stateLabelMode: stateLabelMode,
+    topn: topn
+  };
+}
+
+function syncControls(selection) {
+  syncStaticOptions();
+  activeSelection = selection;
+  syncStateOptions(selection.state);
+  syncFlowTypeOptions(selection.flowType, selection);
+  selection.flowType = flowTypeSelect.value;
+  syncIndustryOptions(selection.industry, selection);
+  selection.industry = industrySelect.value;
+  directionSelect.value = selection.direction;
+  metricSelect.value = selection.metric;
+  stateLabelSelect.value = selection.stateLabelMode;
+  topnSlider.value = String(selection.topn);
+  topnLabel.textContent = String(selection.topn);
+  selection.partnerState = syncPartnerStateOptions(selection.state, selection.partnerState, selection);
+  activeSelection = selection;
+}
+
+function findBackEdges(links) {
+  const adjacency = new Map();
+  links.forEach(function (link) {
+    if (!adjacency.has(link.source)) {
+      adjacency.set(link.source, []);
+    }
+    adjacency.get(link.source).push(link);
+  });
+
+  const color = new Map();
+  const WHITE = 0;
+  const GRAY = 1;
+  const BLACK = 2;
+  const backEdges = [];
+
+  function visit(node) {
+    color.set(node, GRAY);
+    (adjacency.get(node) || []).forEach(function (link) {
+      const nextColor = color.has(link.target) ? color.get(link.target) : WHITE;
+      if (nextColor === GRAY) {
+        backEdges.push(link);
+      } else if (nextColor === WHITE) {
+        visit(link.target);
+      }
+    });
+    color.set(node, BLACK);
+  }
+
+  const nodes = new Set();
+  links.forEach(function (link) {
+    nodes.add(link.source);
+    nodes.add(link.target);
+  });
+  nodes.forEach(function (node) {
+    if (!color.has(node)) {
+      visit(node);
+    }
+  });
+
+  return backEdges;
+}
+
+function removeCycles(links) {
+  let remaining = links.slice();
+  for (let guard = 0; guard < links.length; guard += 1) {
+    const backEdges = findBackEdges(remaining);
+    if (!backEdges.length) {
+      break;
+    }
+    const smallest = backEdges.reduce(function (current, candidate) {
+      return candidate.value < current.value ? candidate : current;
+    });
+    remaining = remaining.filter(function (link) {
+      return link !== smallest;
+    });
+  }
+  return remaining;
+}
+
+function buildSankeyData(rows, selection) {
+  const edgeMap = new Map();
+  rows.forEach(function (row) {
+    const value = parseNumber(row[selection.metric]);
+    if (!Number.isFinite(value) || value <= 0) {
+      return;
+    }
+    const key = row.origin_state + "\x00" + row.destination_state;
+    const current = edgeMap.get(key) || {
+      source: row.origin_state,
+      target: row.destination_state,
+      value: 0,
+      level: 0,
+      employment_impact: 0
+    };
+    current.value += value;
+    current.level += row.level;
+    current.employment_impact += row.employment_impact;
+    edgeMap.set(key, current);
+  });
+
+  let links = Array.from(edgeMap.values())
+    .sort(function (left, right) {
+      return right.value - left.value;
+    })
+    .slice(0, selection.topn);
+
+  links = removeCycles(links);
+
+  const nodeSet = new Set();
+  links.forEach(function (link) {
+    nodeSet.add(link.source);
+    nodeSet.add(link.target);
+  });
+
+  return {
+    links: links,
+    nodes: Array.from(nodeSet).map(function (code) {
+      return {
+        name: code
+      };
+    })
+  };
+}
+
+function formatEdgeTooltip(data) {
+  return [
+    "<b>" + stateLabel(data.source) + " -> " + stateLabel(data.target) + "</b>",
+    METRICS[activeSelection.metric].label + ": <b>" + fmtMetricValue(data.value, activeSelection.metric) + "</b>",
+    "Trade Level: <b>" + fmtMetricValue(data.level, "level") + "</b>",
+    "Employment Impact: <b>" + fmtMetricValue(data.employment_impact, "employment_impact") + "</b>",
+    "Industry: <b>" + industryLabel(activeSelection.industry) + "</b>"
+  ].join("<br/>");
+}
+
+function buildPartnerBreakdown(rows, selection) {
+  const grouped = new Map();
+  rows.forEach(function (row) {
+    const partner = selection.direction === "inbound" ? row.origin_state : row.destination_state;
+    if (!partner) {
+      return;
+    }
+    const current = grouped.get(partner) || {
+      partner: partner,
+      level: 0,
+      employment_impact: 0
+    };
+    current.level += row.level;
+    current.employment_impact += row.employment_impact;
+    grouped.set(partner, current);
+  });
+
+  return Array.from(grouped.values()).sort(function (left, right) {
+    if (right[selection.metric] !== left[selection.metric]) {
+      return right[selection.metric] - left[selection.metric];
+    }
+    return right.level - left.level;
+  }).slice(0, 10);
+}
+
+function renderPartnerChart(rows) {
+  if (!activeSelection || !activeSelection.state) {
+    partnerChart.clear();
+    partnerChartHeader.textContent = "Top Partner States";
+    partnerChartNote.textContent = "Choose a focus state to rank partner states.";
+    setPartnerStatus("Select a state to populate the partner ranking.", false);
+    return;
+  }
+
+  const partners = buildPartnerBreakdown(rows, activeSelection);
+  if (!partners.length) {
+    partnerChart.clear();
+    partnerChartHeader.textContent = "Top Partner States";
+    partnerChartNote.textContent = "Partner ranking for the selected state, based on the active direction, industry filter, and metric.";
+    setPartnerStatus("No partner-state data is available for this selection.", true);
+    return;
+  }
+
+  const stateName = stateLabel(activeSelection.state);
+  const directionTitle = activeSelection.direction === "inbound" ? "Source States" : "Destination States";
+  partnerChartHeader.textContent = directionTitle + " for " + stateName;
+  partnerChartNote.textContent = "Ranking the top partner states by " + METRICS[activeSelection.metric].label + " for " + industryLabel(activeSelection.industry) + ".";
+
+  partnerChart.setOption({
+    animationDuration: 250,
+    grid: {
+      left: 96,
+      right: 40,
+      top: 36,
+      bottom: 24,
+      containLabel: true
+    },
+    tooltip: {
+      trigger: "axis",
+      axisPointer: { type: "shadow" },
+      confine: true,
+      formatter: function (params) {
+        const item = params[0];
+        const source = item.data;
+        return [
+          "<b>" + stateLabel(source.partner) + "</b>",
+          METRICS[activeSelection.metric].label + ": <b>" + fmtMetricValue(source[activeSelection.metric], activeSelection.metric) + "</b>",
+          "Trade Level: <b>" + fmtMetricValue(source.level, "level") + "</b>",
+          "Employment Impact: <b>" + fmtMetricValue(source.employment_impact, "employment_impact") + "</b>"
+        ].join("<br/>");
+      }
+    },
+    xAxis: {
+      type: "value",
+      axisLabel: {
+        formatter: function (value) {
+          return fmtNumber(value);
+        }
+      }
+    },
+    yAxis: {
+      type: "category",
+      inverse: true,
+      axisTick: { show: false },
+      data: partners.map(function (row) {
+        return stateLabel(row.partner);
+      })
+    },
+    series: [{
+      type: "bar",
+      barMaxWidth: 22,
+      itemStyle: {
+        color: "#2563eb"
+      },
+      data: partners.map(function (row) {
+        return Object.assign({ value: row[activeSelection.metric] }, row);
+      }),
+      label: {
+        show: true,
+        position: "right",
+        color: "#334155",
+        formatter: function (params) {
+          return fmtMetricValue(params.data.value, activeSelection.metric);
+        }
+      }
+    }]
+  }, true);
+  partnerChart.resize();
+
+  setPartnerStatus("Showing the top " + partners.length + " partner states for " + stateName + ".", false);
+}
+
+function renderSummary() {
+  if (!activeSelection || !activeSelection.state) {
+    stateSummaryHeader.textContent = "State Impact Summary";
+    stateSummaryBody.innerHTML = "";
+    setSummaryStatus("Select a state to view the corresponding impact totals and specialization tags.", false);
+    return;
+  }
+
+  const matchingRows = impactRows.filter(function (row) {
+    return row.state_code === activeSelection.state &&
+      (!activeSelection.industry || row.industry_code === activeSelection.industry);
+  });
+
+  const tags = specializationsByState[activeSelection.state] || [];
+  stateSummaryHeader.textContent = "State Impact Summary for " + stateLabel(activeSelection.state);
+  stateSummaryNote.textContent = activeSelection.industry
+    ? "Impact totals for " + industryLabel(activeSelection.industry) + " in " + stateLabel(activeSelection.state) + "."
+    : "Impact totals aggregated across all industries for " + stateLabel(activeSelection.state) + ".";
+
+  if (!matchingRows.length) {
+    stateSummaryBody.innerHTML = "";
+    setSummaryStatus("No impact summary is available for this state and industry combination.", true);
+    return;
+  }
+
+  const totals = {};
+  IMPACT_SUMMARY_FIELDS.forEach(function (field) {
+    totals[field.key] = 0;
+  });
+
+  matchingRows.forEach(function (row) {
+    IMPACT_SUMMARY_FIELDS.forEach(function (field) {
+      totals[field.key] += row[field.key];
+    });
+  });
+
+  const cardsHtml = IMPACT_SUMMARY_FIELDS.map(function (field) {
+    return [
+      '<div class="summary-card">',
+      "<strong>" + field.label + "</strong>",
+      "<span>" + fmtNumber(totals[field.key]) + "</span>",
+      "</div>"
+    ].join("");
+  }).join("");
+
+  const tagsHtml = tags.length
+    ? '<div class="tag-row">' + tags.map(function (tag) {
+      return '<span class="tag-pill">' + tag + "</span>";
+    }).join("") + "</div>"
+    : '<p>No specialization tags are listed for this state.</p>';
+
+  stateSummaryBody.innerHTML = '<div class="summary-grid">' + cardsHtml + "</div>" + tagsHtml;
+  setSummaryStatus("Summary is based on " + matchingRows.length + " state-industry impact record(s).", false);
+}
+
+function render() {
+  if (!activeSelection) {
+    return;
+  }
+
+  const rows = rowsForSelection(activeSelection);
+  const sankeyData = buildSankeyData(rows, activeSelection);
+
+  if (!sankeyData.links.length) {
+    chart.clear();
+    setStatus("No state trade links are available for this combination.", true);
+    renderPartnerChart(rows);
+    renderSummary();
+    return;
+  }
+
+  chart.setOption({
+    tooltip: {
+      trigger: "item",
+      triggerOn: "mousemove",
+      confine: true,
+      formatter: function (params) {
+        if (params.dataType === "edge") {
+          return formatEdgeTooltip(params.data);
+        }
+        return "<b>" + stateLabel(params.name) + "</b>";
+      }
+    },
+    series: [{
+      type: "sankey",
+      layout: "none",
+      layoutIterations: 32,
+      emphasis: {
+        focus: "adjacency"
+      },
+      nodeAlign: "left",
+      nodeGap: 16,
+      nodeWidth: 22,
+      left: "1%",
+      right: "8%",
+      top: "2%",
+      bottom: "2%",
+      data: sankeyData.nodes,
+      links: sankeyData.links,
+      label: {
+        position: "right",
+        fontSize: 12,
+        width: 160,
+        overflow: "truncate",
+        align: "left",
+        color: "#334155",
+        formatter: function (params) {
+          return stateLabel(params.name);
+        }
+      },
+      lineStyle: {
+        color: "gradient",
+        opacity: 0.42,
+        curveness: 0.5
+      },
+      itemStyle: {
+        borderWidth: 1,
+        borderColor: "#94a3b8"
+      }
+    }]
+  }, true);
+  chart.resize();
+
+  const scopeLabel = activeSelection.state
+    ? stateLabel(activeSelection.state)
+    : "all states";
+  setStatus(
+    "Showing top " + sankeyData.links.length + " " +
+    titleCase(activeSelection.direction) + " " +
+    titleCase(activeSelection.flowType || "all trade types") +
+    " links for " + scopeLabel +
+    " by " + METRICS[activeSelection.metric].label +
+    " in " + industryLabel(activeSelection.industry) + ".",
+    false
+  );
+
+  renderPartnerChart(rows);
+  renderSummary();
+}
+
+function updateFromControls(writeHash) {
+  const selection = resolveSelection({
+    state: stateSelect.value,
+    partnerState: partnerStateSelect.value,
+    direction: directionSelect.value,
+    flowType: flowTypeSelect.value,
+    industry: industrySelect.value,
+    metric: metricSelect.value,
+    stateLabelMode: stateLabelSelect.value,
+    topn: parseInt(topnSlider.value, 10) || 20
+  });
+
+  syncControls(selection);
+  if (writeHash) {
+    writeHashState(selection, false);
+  } else {
+    writeHashState(selection, true);
+  }
+  render();
+}
+
+async function loadData() {
+  const payloads = await Promise.all([
+    fetchTextWithFallback([dataLocalPath(TRADE_FLOW_FILE), dataRawPath(TRADE_FLOW_FILE)]),
+    fetchTextWithFallback([dataLocalPath(STATE_CODES_FILE), dataRawPath(STATE_CODES_FILE)]),
+    fetchTextWithFallback([dataLocalPath(IMPACT_FILE), dataRawPath(IMPACT_FILE)]),
+    fetchTextWithFallback([dataLocalPath(SPECIALIZATION_FILE), dataRawPath(SPECIALIZATION_FILE)])
+  ]);
+
+  if (payloads.some(function (text) { return !text; })) {
+    throw new Error("Missing state CSV input.");
+  }
+
+  const parsedFlows = parseTradeFlows(payloads[0]);
+  if (!parsedFlows.rows.length || !parsedFlows.states.length) {
+    throw new Error("State trade flow data is empty.");
+  }
+  aggregatedFlows = parsedFlows.rows;
+  availableStates = parsedFlows.states;
+  availableIndustries = parsedFlows.industries;
+  availableFlowTypes = parsedFlows.flowTypes;
+  parseStateCodes(payloads[1]);
+  parseImpactRows(payloads[2]);
+  parseSpecializations(payloads[3]);
+}
+
+stateSelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+partnerStateSelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+directionSelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+flowTypeSelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+industrySelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+metricSelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+stateLabelSelect.addEventListener("change", function () {
+  updateFromControls(true);
+});
+
+topnSlider.addEventListener("input", function () {
+  topnLabel.textContent = topnSlider.value;
+  updateFromControls(true);
+});
+
+stateHelpButton.addEventListener("click", function () {
+  const isHidden = stateHelpPanel.hasAttribute("hidden");
+  if (isHidden) {
+    stateHelpPanel.removeAttribute("hidden");
+  } else {
+    stateHelpPanel.setAttribute("hidden", "");
+  }
+  stateHelpButton.setAttribute("aria-expanded", String(isHidden));
+});
+
+window.addEventListener("hashchange", function () {
+  if (!availableStates.length) {
+    return;
+  }
+  const selection = resolveSelection(readHashState());
+  syncControls(selection);
+  render();
+});
+
+window.addEventListener("resize", function () {
+  chart.resize();
+  partnerChart.resize();
+});
+
+loadData().then(function () {
+  const selection = resolveSelection(readHashState());
+  syncControls(selection);
+  writeHashState(selection, true);
+  render();
+}).catch(function () {
+  setStatus("Unable to load the required state CSV inputs.", true);
+  setPartnerStatus("Partner ranking is unavailable because the trade data could not be loaded.", true);
+  setSummaryStatus("State impact summary is unavailable because the state CSV inputs could not be loaded.", true);
+});
+</script>
+</body>
+</html>

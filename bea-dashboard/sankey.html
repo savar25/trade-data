@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en-us">
 <head>
 <meta charset="utf-8">
@@ -382,6 +382,41 @@ const CURRENCY_NAMES = {
   ISK: "Icelandic Krona",
   NZD: "New Zealand Dollar",
   RUB: "Russian Rouble"
+};
+const CURRENCY_SYMBOLS = {
+  EUR: "\u20ac",
+  USD: "$",
+  JPY: "\u00a5",
+  GBP: "\u00a3",
+  CHF: "CHF ",
+  SEK: "kr ",
+  NOK: "kr ",
+  DKK: "kr ",
+  CZK: "K\u010d ",
+  PLN: "z\u0142 ",
+  HUF: "Ft ",
+  RON: "lei ",
+  HRK: "kn ",
+  BGN: "\u043b\u0432 ",
+  TRY: "\u20ba",
+  AUD: "A$",
+  CAD: "C$",
+  HKD: "HK$",
+  SGD: "S$",
+  KRW: "\u20a9",
+  ZAR: "R ",
+  MXN: "MX$",
+  INR: "\u20b9",
+  CNY: "\u00a5",
+  BRL: "R$",
+  IDR: "Rp ",
+  ILS: "\u20aa",
+  MYR: "RM ",
+  PHP: "\u20b1",
+  THB: "\u0e3f",
+  ISK: "kr ",
+  NZD: "NZ$",
+  RUB: "\u20bd"
 };
 
 const SECTOR_NAMES = {
@@ -783,6 +818,15 @@ function wrapLabel(text, maxChars) {
   return lines.join("\n");
 }
 
+function formatSankeyNodeLabel(node, metricKey) {
+  const label = wrapLabel(sectorLabel(node && node.name), 24);
+  const nodeValue = parseNumber(node && (node.nodeValue || node.value));
+  if (nodeValue <= 0) {
+    return label;
+  }
+  return label + " " + fmtCompactValue(nodeValue, metricKey);
+}
+
 async function loadIndustryNamesForYear(year) {
   const key = normalizeCode(year);
   if (!key || industryNameByYear[key]) {
@@ -921,10 +965,59 @@ function displayMetricValue(value, metricKey) {
   return parseNumber(value);
 }
 
+function currencySymbol(currencyCode) {
+  const normalized = normalizeCode(currencyCode).toUpperCase();
+  return CURRENCY_SYMBOLS[normalized] || (normalized ? normalized + " " : "");
+}
+
+function formatMagnitudeWordValue(value) {
+  const numericValue = parseNumber(value);
+  const absolute = Math.abs(numericValue);
+  const thresholds = [
+    { size: 1e12, label: "Trillion" },
+    { size: 1e9, label: "Billion" },
+    { size: 1e6, label: "Million" },
+    { size: 1e3, label: "Thousand" }
+  ];
+  const threshold = thresholds.find(function (entry) {
+    return absolute >= entry.size;
+  });
+
+  if (!threshold) {
+    return numericValue.toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  const scaled = numericValue / threshold.size;
+  const maximumFractionDigits = Math.abs(scaled) >= 100 ? 0 : 1;
+  const precision = Math.pow(10, maximumFractionDigits);
+  const rounded = Math.round(scaled * precision) / precision;
+
+  return rounded.toLocaleString(undefined, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maximumFractionDigits
+  }) + " " + threshold.label;
+}
+
+function formatCurrencyMagnitudeWordValue(value, currencyCode) {
+  return currencySymbol(currencyCode) + formatMagnitudeWordValue(parseNumber(value) * 1e6);
+}
+
+function formatCurrencyCompactValue(value, currencyCode) {
+  const numericValue = parseNumber(value) * 1e6;
+  const symbol = currencySymbol(currencyCode);
+  const formatter = Math.abs(numericValue) >= 1e6
+    ? { notation: "compact", maximumFractionDigits: 1 }
+    : { maximumFractionDigits: 0 };
+  return symbol + numericValue.toLocaleString(undefined, formatter);
+}
+
 function fmtValue(val, metricKey) {
   const metric = METRICS[metricKey];
   if (!metric) {
     return parseNumber(val).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  }
+  if (metricKey === "amount") {
+    return formatCurrencyMagnitudeWordValue(displayMetricValue(val, metricKey), selectedCurrency());
   }
   const scaled = displayMetricValue(val, metricKey) / metricScale(metricKey);
   const formatted = scaled >= 1000
@@ -938,6 +1031,9 @@ function fmtAxisTick(val, metricKey) {
   if (!metric) {
     return parseNumber(val).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
   }
+  if (metricKey === "amount") {
+    return formatCurrencyCompactValue(displayMetricValue(val, metricKey), selectedCurrency());
+  }
   const scaled = displayMetricValue(val, metricKey) / metricScale(metricKey);
   return scaled.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
 }
@@ -947,10 +1043,12 @@ function fmtCompactValue(val, metricKey) {
   if (!metric) {
     return parseNumber(val).toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 });
   }
+  if (metricKey === "amount") {
+    return formatCurrencyCompactValue(displayMetricValue(val, metricKey), selectedCurrency());
+  }
   const scaled = displayMetricValue(val, metricKey) / metricScale(metricKey);
   return scaled.toLocaleString(undefined, { notation: "compact", maximumFractionDigits: 1 }) + "\u00A0" + metricUnit(metricKey);
 }
-
 function fmtScore(val) {
   return parseNumber(val).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 }
@@ -1410,15 +1508,31 @@ function buildSankeyData(metricKey, topN) {
 
   links = removeCycles(links);
 
-  const nodeSet = new Set();
+  const nodeTotals = new Map();
   for (const link of links) {
-    nodeSet.add(link.source);
-    nodeSet.add(link.target);
+    const sourceTotals = nodeTotals.get(link.source) || { incoming: 0, outgoing: 0 };
+    const targetTotals = nodeTotals.get(link.target) || { incoming: 0, outgoing: 0 };
+    sourceTotals.outgoing += link.value;
+    targetTotals.incoming += link.value;
+    nodeTotals.set(link.source, sourceTotals);
+    nodeTotals.set(link.target, targetTotals);
   }
 
   return {
-    nodes: Array.from(nodeSet).map(function (name) {
-      return { name: name };
+    nodes: Array.from(nodeTotals.entries()).map(function (entry) {
+      const name = entry[0];
+      const totals = entry[1];
+      const nodeValue = Math.max(totals.incoming, totals.outgoing);
+      const isSink = totals.incoming > 0 && totals.outgoing === 0;
+      return {
+        name: name,
+        value: nodeValue,
+        nodeValue: nodeValue,
+        label: {
+          position: isSink ? "left" : "right",
+          align: isSink ? "right" : "left"
+        }
+      };
     }),
     links: links
   };
@@ -1524,13 +1638,13 @@ function render() {
       label: {
         position: "right",
         fontSize: 12,
-        width: 150,
+        width: 220,
         overflow: "break",
         lineHeight: 14,
         align: "left",
         color: "#333",
         formatter: function(params) {
-          return wrapLabel(sectorLabel(params.name), 24);
+          return formatSankeyNodeLabel(params.data, activeSelection.metric);
         }
       },
       lineStyle: {
@@ -1958,3 +2072,7 @@ Promise.all([
 </script>
 </body>
 </html>
+
+
+
+
